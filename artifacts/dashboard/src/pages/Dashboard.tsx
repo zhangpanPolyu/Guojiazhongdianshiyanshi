@@ -4,6 +4,7 @@ import { LeftPanel } from "../components/layout/LeftPanel";
 import { RightPanel } from "../components/layout/RightPanel";
 import { CenterStage } from "../components/layout/CenterStage";
 import { BottomDataStrip } from "../components/layout/BottomDataStrip";
+import { AICopilotDrawer } from "../components/ai/AICopilotDrawer";
 
 export default function Dashboard() {
   return (
@@ -22,6 +23,9 @@ export default function Dashboard() {
       </div>
       
       <BottomDataStrip />
+
+      {/* AI Copilot — floating button + slide-out drawer */}
+      <AICopilotDrawer />
     </div>
   );
 }
