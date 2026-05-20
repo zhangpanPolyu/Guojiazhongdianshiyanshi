@@ -3,13 +3,24 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: Equipment Management Digital Twin API
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: equipment
+    description: Equipment management
+  - name: alerts
+    description: Alert management
+  - name: metrics
+    description: Metrics and telemetry
+  - name: categories
+    description: Equipment categories
+  - name: dashboard
+    description: Dashboard summaries and analytics
+
 paths:
   /healthz:
     get:
@@ -24,6 +35,191 @@ paths:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /equipment:
+    get:
+      operationId: listEquipment
+      tags: [equipment]
+      summary: List all equipment
+      parameters:
+        - name: category
+          in: query
+          schema:
+            type: string
+        - name: status
+          in: query
+          schema:
+            type: string
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Equipment list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Equipment"
+
+  /equipment/{id}:
+    get:
+      operationId: getEquipment
+      tags: [equipment]
+      summary: Get equipment by ID
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Equipment detail
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Equipment"
+        "404":
+          description: Not found
+
+  /equipment/{id}/metrics:
+    get:
+      operationId: getEquipmentMetrics
+      tags: [equipment]
+      summary: Get metrics history for an equipment
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Metrics list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Metric"
+
+  /alerts:
+    get:
+      operationId: listAlerts
+      tags: [alerts]
+      summary: List alerts
+      parameters:
+        - name: acknowledged
+          in: query
+          schema:
+            type: boolean
+        - name: severity
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Alerts list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Alert"
+
+  /alerts/{id}/acknowledge:
+    post:
+      operationId: acknowledgeAlert
+      tags: [alerts]
+      summary: Acknowledge an alert
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Alert acknowledged
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Alert"
+        "404":
+          description: Not found
+
+  /categories:
+    get:
+      operationId: listCategories
+      tags: [categories]
+      summary: List equipment categories
+      responses:
+        "200":
+          description: Category list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/EquipmentCategory"
+
+  /dashboard/summary:
+    get:
+      operationId: getDashboardSummary
+      tags: [dashboard]
+      summary: Get dashboard overview summary
+      responses:
+        "200":
+          description: Dashboard summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardSummary"
+
+  /dashboard/recent-alerts:
+    get:
+      operationId: getRecentAlerts
+      tags: [dashboard]
+      summary: Get recent unacknowledged alerts
+      responses:
+        "200":
+          description: Recent alerts
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Alert"
+
+  /dashboard/status-breakdown:
+    get:
+      operationId: getStatusBreakdown
+      tags: [dashboard]
+      summary: Equipment status breakdown counts
+      responses:
+        "200":
+          description: Status breakdown
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/StatusBreakdown"
+
+  /metrics/environment:
+    get:
+      operationId: getEnvironmentMetrics
+      tags: [metrics]
+      summary: Get current environment metrics (temperature, humidity, etc.)
+      responses:
+        "200":
+          description: Environment metrics
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/EnvironmentMetrics"
+
 components:
   schemas:
     HealthStatus:
@@ -34,3 +230,194 @@ components:
       required:
         - status
 
+    Equipment:
+      type: object
+      required:
+        - id
+        - name
+        - nameEn
+        - category
+        - status
+        - location
+        - lastMaintenance
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+          description: "Chinese name"
+        nameEn:
+          type: string
+          description: "English name"
+        category:
+          type: string
+        status:
+          type: string
+          enum: [running, warning, fault, offline, maintenance]
+        location:
+          type: string
+        locationEn:
+          type: string
+        model:
+          type: ["string", "null"]
+        serialNumber:
+          type: ["string", "null"]
+        lastMaintenance:
+          type: string
+        predictedFailureDate:
+          type: ["string", "null"]
+        metrics:
+          type: array
+          items:
+            $ref: "#/components/schemas/Metric"
+
+    Alert:
+      type: object
+      required:
+        - id
+        - equipmentId
+        - equipmentName
+        - severity
+        - message
+        - messageEn
+        - timestamp
+        - acknowledged
+      properties:
+        id:
+          type: string
+        equipmentId:
+          type: string
+        equipmentName:
+          type: string
+        severity:
+          type: string
+          enum: [critical, warning, info]
+        message:
+          type: string
+          description: "Chinese message"
+        messageEn:
+          type: string
+          description: "English message"
+        timestamp:
+          type: string
+        acknowledged:
+          type: boolean
+
+    Metric:
+      type: object
+      required:
+        - key
+        - label
+        - value
+        - unit
+        - timestamp
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        value:
+          type: number
+        unit:
+          type: string
+        timestamp:
+          type: string
+        trend:
+          type: ["string", "null"]
+          enum: [up, down, stable, null]
+
+    EquipmentCategory:
+      type: object
+      required:
+        - id
+        - name
+        - nameEn
+        - icon
+        - count
+        - alertCount
+      properties:
+        id:
+          type: string
+        name:
+          type: string
+        nameEn:
+          type: string
+        icon:
+          type: string
+        count:
+          type: integer
+        alertCount:
+          type: integer
+
+    DashboardSummary:
+      type: object
+      required:
+        - totalEquipment
+        - runningCount
+        - warningCount
+        - faultCount
+        - offlineCount
+        - maintenanceCount
+        - activeAlerts
+        - criticalAlerts
+        - healthScore
+      properties:
+        totalEquipment:
+          type: integer
+        runningCount:
+          type: integer
+        warningCount:
+          type: integer
+        faultCount:
+          type: integer
+        offlineCount:
+          type: integer
+        maintenanceCount:
+          type: integer
+        activeAlerts:
+          type: integer
+        criticalAlerts:
+          type: integer
+        healthScore:
+          type: number
+          description: "Overall system health 0-100"
+
+    StatusBreakdown:
+      type: object
+      required:
+        - running
+        - warning
+        - fault
+        - offline
+        - maintenance
+      properties:
+        running:
+          type: integer
+        warning:
+          type: integer
+        fault:
+          type: integer
+        offline:
+          type: integer
+        maintenance:
+          type: integer
+
+    EnvironmentMetrics:
+      type: object
+      required:
+        - temperature
+        - humidity
+        - vibration
+        - power
+        - timestamp
+      properties:
+        temperature:
+          type: number
+        humidity:
+          type: number
+        vibration:
+          type: number
+        power:
+          type: number
+        timestamp:
+          type: string
