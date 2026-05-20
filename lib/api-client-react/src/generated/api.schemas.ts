@@ -131,5 +131,6 @@ search?: string;
 export type ListAlertsParams = {
 acknowledged?: boolean;
 severity?: string;
+equipmentId?: string;
 };
 

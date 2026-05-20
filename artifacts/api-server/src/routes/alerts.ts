@@ -69,13 +69,16 @@ let alerts = [...alertsData];
 
 router.get("/alerts", (req, res) => {
   let result = [...alerts];
-  const { acknowledged, severity } = req.query;
+  const { acknowledged, severity, equipmentId } = req.query;
   if (acknowledged !== undefined) {
     const ack = acknowledged === "true";
     result = result.filter((a) => a.acknowledged === ack);
   }
   if (severity && typeof severity === "string") {
     result = result.filter((a) => a.severity === severity);
+  }
+  if (equipmentId && typeof equipmentId === "string") {
+    result = result.filter((a) => a.equipmentId === equipmentId);
   }
   res.json(result);
 });
