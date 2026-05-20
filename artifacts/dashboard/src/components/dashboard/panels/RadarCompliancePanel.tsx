@@ -10,21 +10,26 @@ import {
 
 const TARGET = [
   { subject: "年均机时", value: 87, fullMark: 100 },
-  { subject: "共享率", value: 73, fullMark: 100 },
+  { subject: "共享率",   value: 73, fullMark: 100 },
   { subject: "服务收入", value: 65, fullMark: 100 },
   { subject: "用户评价", value: 92, fullMark: 100 },
   { subject: "培训人次", value: 78, fullMark: 100 },
 ];
 
-const ZERO = TARGET.map((d) => ({ ...d, value: 0 }));
-
 export function RadarCompliancePanel() {
-  const [data, setData] = useState(ZERO);
+  const [revealed, setRevealed] = useState(0);
 
   useEffect(() => {
-    const t = setTimeout(() => setData(TARGET), 500);
-    return () => clearTimeout(t);
+    const timers = TARGET.map((_, i) =>
+      setTimeout(() => setRevealed(i + 1), 400 + i * 200)
+    );
+    return () => timers.forEach(clearTimeout);
   }, []);
+
+  const data = TARGET.map((d, i) => ({
+    ...d,
+    value: i < revealed ? d.value : 0,
+  }));
 
   return (
     <GlassPanel className="flex flex-col p-3" style={{ height: "230px" }}>
@@ -32,7 +37,14 @@ export function RadarCompliancePanel() {
         <h3 className="text-[10px] font-semibold tracking-widest text-white/60 uppercase">
           国家开放共享考核
         </h3>
-        <span className="text-[9px] font-mono text-sci-cyan bg-sci-cyan/10 px-1.5 py-0.5 rounded border border-sci-cyan/20">
+        <span
+          className="text-[9px] font-mono px-1.5 py-0.5 rounded border"
+          style={{
+            color: "var(--sci-cyan)",
+            background: "rgba(0,240,255,0.08)",
+            borderColor: "rgba(0,240,255,0.2)",
+          }}
+        >
           2026 Q1
         </span>
       </div>
@@ -53,13 +65,13 @@ export function RadarCompliancePanel() {
             />
             <Radar
               dataKey="value"
-              stroke="#00F0FF"
-              fill="#00F0FF"
+              stroke="var(--sci-cyan)"
+              fill="var(--sci-cyan)"
               fillOpacity={0.18}
               strokeWidth={1.5}
-              dot={{ r: 2, fill: "#00F0FF", strokeWidth: 0 }}
+              dot={{ r: 2, fill: "var(--sci-cyan)", strokeWidth: 0 } as any}
               isAnimationActive={true}
-              animationDuration={1000}
+              animationDuration={600}
               animationEasing="ease-out"
             />
           </RadarChart>

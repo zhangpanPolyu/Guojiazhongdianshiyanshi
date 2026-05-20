@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React from "react";
 import { GlassPanel } from "../../ui/glass-panel";
 
 interface GanttBlock {
@@ -59,19 +59,6 @@ const ROWS: GanttRow[] = [
 
 const TICK_HOURS = [0, 6, 12, 18, 24];
 
-const COLORS = {
-  occupied: {
-    bg: "rgba(0,240,255,0.18)",
-    border: "rgba(0,240,255,0.55)",
-    text: "#00F0FF",
-  },
-  "ai-optimized": {
-    bg: "rgba(255,184,0,0.22)",
-    border: "rgba(255,184,0,0.65)",
-    text: "#FFB800",
-  },
-};
-
 export function GanttPanel() {
   const now = new Date();
   const nowPct = ((now.getHours() + now.getMinutes() / 60) / 24) * 100;
@@ -124,14 +111,15 @@ export function GanttPanel() {
                 className="absolute top-0 bottom-0 w-px z-10"
                 style={{
                   left: `${nowPct}%`,
-                  background: "rgba(0,255,102,0.7)",
-                  boxShadow: "0 0 4px rgba(0,255,102,0.6)",
+                  background: "var(--sci-green)",
+                  opacity: 0.7,
+                  boxShadow: "0 0 4px var(--sci-green)",
                 }}
               />
               {row.blocks.map((block, bi) => {
                 const left = pct(block.start);
                 const width = pct(block.end - block.start);
-                const c = COLORS[block.type];
+                const isAI = block.type === "ai-optimized";
                 return (
                   <div
                     key={bi}
@@ -139,15 +127,19 @@ export function GanttPanel() {
                     style={{
                       left: `${left}%`,
                       width: `${width}%`,
-                      background: c.bg,
-                      border: `1px solid ${c.border}`,
+                      background: isAI
+                        ? "rgba(255,184,0,0.22)"
+                        : "rgba(0,240,255,0.18)",
+                      border: `1px solid ${isAI ? "rgba(255,184,0,0.65)" : "rgba(0,240,255,0.55)"}`,
                     }}
                   >
                     <span
                       className="text-[8px] font-mono px-1 truncate leading-none"
-                      style={{ color: c.text }}
+                      style={{
+                        color: isAI ? "var(--sci-amber)" : "var(--sci-cyan)",
+                      }}
                     >
-                      {block.type === "ai-optimized" ? "AI↑" : block.label}
+                      {isAI ? "AI↑" : block.label}
                     </span>
                   </div>
                 );

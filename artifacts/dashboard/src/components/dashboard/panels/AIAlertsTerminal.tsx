@@ -32,7 +32,7 @@ let _id = 0;
 const ts = () => new Date().toLocaleTimeString("zh-CN", { hour12: false });
 
 function seedLines(): LogLine[] {
-  return Array.from({ length: 7 }, (_, i) => ({
+  return Array.from({ length: 6 }, (_, i) => ({
     id: ++_id,
     time: ts(),
     level: POOL[i % POOL.length].level,
@@ -42,28 +42,27 @@ function seedLines(): LogLine[] {
 
 export function AIAlertsTerminal() {
   const [lines, setLines] = useState<LogLine[]>(seedLines);
-  const poolRef = useRef(7);
+  const poolRef = useRef(6);
   const containerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const delay = () => 2200 + Math.random() * 1800;
     let timer: ReturnType<typeof setTimeout>;
 
     const tick = () => {
       const entry = POOL[poolRef.current % POOL.length];
       poolRef.current++;
       const line: LogLine = { id: ++_id, time: ts(), level: entry.level, msg: entry.msg };
-      setLines((prev) => [...prev.slice(-29), line]);
-      timer = setTimeout(tick, delay());
+      setLines(prev => [line, ...prev.slice(0, 29)]);
+      timer = setTimeout(tick, 2200 + Math.random() * 1800);
     };
 
-    timer = setTimeout(tick, delay());
+    timer = setTimeout(tick, 2200 + Math.random() * 1800);
     return () => clearTimeout(timer);
   }, []);
 
   useEffect(() => {
     const el = containerRef.current;
-    if (el) el.scrollTop = el.scrollHeight;
+    if (el) el.scrollTop = 0;
   }, [lines]);
 
   return (
@@ -99,7 +98,7 @@ function LevelTag({ level }: { level: Level }) {
         className="shrink-0 font-bold animate-pulse"
         style={{ color: "var(--sci-red)" }}
       >
-        [CRIT]
+        [CRITICAL]
       </span>
     );
   if (level === "WARN")
