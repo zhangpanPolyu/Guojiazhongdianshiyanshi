@@ -1,0 +1,190 @@
+You are a world-class full-stack architect and digital twin visualization expert. Your task is to build a futuristic, minimalist "Equipment Management Digital Twin Dashboard Platform" for the National Key Laboratory of Civil Engineering at Shenzhen University using the following technology stack: Next.js 14 (App Router), React 18, TypeScript, Tailwind CSS, shadcn/ui, and React Three Fiber (R3F).
+
+--- ## 🎯 Project Scope & Requirements
+This is a comprehensive multi-domain equipment management system featuring:
+
+Multiple switchable 3D views: building model, equipment schematic, and network topology
+Hybrid data intelligence: real-time alerts combined with historical analytics and predictive maintenance models
+Role-based customizable panels: configurable layouts for operators, engineers, and managers
+--- ## 🎨 Visual Design System (Strict Adherence Required)
+Global Theme: Extreme Dark Sci-Fi Minimalism (Dark Sci-Fi Minimalism)
+
+Color Palette (use as CSS variables in globals.css):
+
+
+--color-bg-primary: #050814;        /* Ultra-dark deep blue — main background */
+--color-accent-cyan: #00F0FF;       /* Cyber blue — core data, glowing borders, selected states */
+--color-status-success: #00FF66;    /* Neon green — normal/running equipment indicators */
+--color-status-warning: #FFB800;    /* Amber yellow — predictive maintenance alerts */
+--color-status-danger: #FF003C;     /* Alert red — faults, with breathing/pulse animation */
+Typography:
+
+Numerical values, codes, IDs: JetBrains Mono (monospace)
+Body text, labels, UI copy: Inter
+Import both fonts via next/font/google
+Surface & Depth:
+
+Replace all solid panels with glassmorphism: backdrop-blur-md + bg-white/5
+Remove all hard borders; use box-shadow with colored glows to define hierarchy
+Apply subtle dynamic background texture: animated noise or grid pattern on #050814
+Glow effects on active/selected elements using box-shadow: 0 0 20px var(--color-accent-cyan)
+--- ## 🏗️ Phase 1: Foundation Engineering — Generate All of the Following ### 1. Project Initialization
+Provide the complete setup commands and configuration for:
+
+
+# Initialize Next.js 14 with App Router + TypeScript + Tailwind
+npx create-next-app@latest szu-digital-twin --typescript --tailwind --app --src-dir
+
+# Install all required dependencies
+npm install @react-three/fiber @react-three/drei three @types/three
+npm install framer-motion lucide-react recharts
+npm install @radix-ui/react-dialog @radix-ui/react-tabs @radix-ui/react-select
+npm install clsx tailwind-merge class-variance-authority
+npx shadcn-ui@latest init
+### 2. `tailwind.config.ts` — Full Configuration
+Include:
+
+Custom color tokens mapped to the design system palette above
+JetBrains Mono and Inter font families
+Custom keyframes and animation utilities:
+pulse-danger: breathing red glow animation for fault states
+scan-line: horizontal scanning line sweep for sci-fi effect
+flicker: subtle opacity flicker for holographic elements
+grid-drift: slow-moving background grid animation
+Extended boxShadow utilities: glow-cyan, glow-green, glow-red, glow-amber
+### 3. `src/app/globals.css` — Global Styles
+Include:
+
+CSS custom properties for all design tokens
+Animated background: SVG grid or CSS noise texture on #050814
+Base resets ensuring full-screen, no-scroll layout
+Scrollbar styling (thin, cyan-tinted for any overflow panels)
+@font-face or next/font integration
+### 4. `src/app/layout.tsx` — Root Layout
+Apply fonts globally
+Set <html> and <body> to h-screen w-screen overflow-hidden bg-[#050814]
+Include metadata for the platform (title, description in Chinese and English)
+Wrap with a ThemeProvider context stub for future role-based theming
+### 5. `src/components/layout/DashboardLayout.tsx` — Core Cockpit Layout
+This is the most critical component. Build a full-screen, no-scroll cockpit layout with:
+
+Layout Structure (CSS Grid):
+
+
+┌─────────────────────────────────────────────────────┐
+│                   TopStatusBar                       │  h-14
+├──────────────┬──────────────────────┬───────────────┤
+│              │                      │               │
+│  LeftPanel   │   CenterStage        │  RightPanel   │
+│  (w-72)      │   (flex-1)           │  (w-80)       │
+│              │   3D Viewport Area   │               │
+│  Floating    │   + View Switcher    │  Floating     │
+│  Glassmorphic│                      │  Glassmorphic │
+│  Panel       │                      │  Panel        │
+│              │                      │               │
+├──────────────┴──────────────────────┴───────────────┤
+│                  BottomDataStrip                     │  h-20
+└─────────────────────────────────────────────────────┘
+Specifications:
+
+TopStatusBar: Platform title (Chinese: 数智孪生设备管理平台), live clock with JetBrains Mono, lab name, connection status indicator with pulsing green dot, and role selector dropdown (Operator / Engineer / Manager)
+LeftPanel: Floating glassmorphic panel (backdrop-blur-md bg-white/5 border border-white/10), contains equipment category navigation with animated active states using cyan glow
+CenterStage: Full remaining space, contains a ViewSwitcher tab bar at top (3D Building | Equipment Schematic | Network Topology) with animated underline indicator, and a placeholder <Canvas> area from R3F with a subtle animated placeholder (rotating wireframe cube or grid)
+RightPanel: Floating glassmorphic panel, contains role-configurable widget slots with drag-handle indicators (visual only for now)
+BottomDataStrip: Horizontal scrolling ticker of key metrics (temperature, humidity, equipment count, alert count) displayed in JetBrains Mono with color-coded status
+### 6. `src/components/layout/ViewSwitcher.tsx`
+A tab-switching component for the three 3D views:
+
+建筑模型 (Building Model)
+设备图谱 (Equipment Schematic)
+网络拓扑 (Network Topology)
+Use framer-motion layoutId for the animated sliding indicator. Each tab shows an icon (from lucide-react) + Chinese label + English sublabel. Active state: cyan glow border-bottom + text color #00F0FF.
+
+### 7. `src/components/ui/StatusBadge.tsx`
+A reusable status indicator component accepting status: 'running' | 'warning' | 'fault' | 'offline' | 'maintenance':
+
+running: #00FF66 with glow-green shadow
+warning: #FFB800 with glow-amber shadow
+fault: #FF003C with pulse-danger animation + glow-red shadow
+offline: #6B7280 no glow
+maintenance: #FFB800 with slow pulse
+### 8. `src/components/ui/MetricCard.tsx`
+A glassmorphic data card component with props: title, value, unit, trend, status, icon. Features:
+
+Value displayed in JetBrains Mono at large size
+Trend arrow with color coding
+Subtle top-border glow line in status color
+Hover state: increased glow intensity with transition-all duration-300
+### 9. `src/context/DashboardContext.tsx`
+A React Context providing:
+
+
+interface DashboardContextType {
+  activeView: 'building' | 'schematic' | 'topology';
+  setActiveView: (view: ...) => void;
+  userRole: 'operator' | 'engineer' | 'manager';
+  setUserRole: (role: ...) => void;
+  panelConfig: PanelConfig[]; // role-based panel configuration
+  alerts: Alert[];            // real-time alert queue
+  selectedEquipmentId: string | null;
+  setSelectedEquipmentId: (id: string | null) => void;
+}
+### 10. `src/types/index.ts` — Complete Type Definitions
+Define all TypeScript interfaces:
+
+
+- Equipment (id, name, category, status, location3D, metrics, lastMaintenance, predictedFailureDate)
+- Alert (id, equipmentId, severity, message, timestamp, acknowledged)
+- Metric (key, value, unit, timestamp, trend)
+- PanelConfig (id, widgetType, position, userRoles, isVisible)
+- EquipmentCategory (id, name, icon, count, alertCount)
+- ViewType, UserRole, EquipmentStatus (as union types/enums)
+--- ## 📁 Required File Structure
+Generate code for each file in this exact structure:
+
+
+src/
+├── app/
+│   ├── layout.tsx
+│   ├── page.tsx                    # Renders DashboardLayout
+│   └── globals.css
+├── components/
+│   ├── layout/
+│   │   ├── DashboardLayout.tsx     # Master cockpit layout
+│   │   ├── TopStatusBar.tsx
+│   │   ├── LeftPanel.tsx
+│   │   ├── RightPanel.tsx
+│   │   ├── CenterStage.tsx
+│   │   ├── BottomDataStrip.tsx
+│   │   └── ViewSwitcher.tsx
+│   ├── ui/
+│   │   ├── StatusBadge.tsx
+│   │   ├── MetricCard.tsx
+│   │   └── GlassPanel.tsx          # Reusable glassmorphic container
+│   └── three/
+│       └── ScenePlaceholder.tsx    # R3F Canvas with animated placeholder
+├── context/
+│   └── DashboardContext.tsx
+├── types/
+│   └── index.ts
+├── lib/
+│   └── utils.ts                    # cn() utility + helper functions
+└── hooks/
+    └── useDashboard.ts             # Custom hook for context consumption
+--- ## ⚙️ Implementation Rules
+Every component must be a TypeScript .tsx file with full type annotations — no any types
+All styling via Tailwind CSS utility classes — no inline styles except for dynamic values (e.g., calculated glow colors)
+Use 'use client' directive only where necessary (interactive components, hooks, R3F canvas)
+Server Components by default for layout wrappers where possible
+Framer Motion for all transitions: panel entries, view switches, status changes
+No placeholder lorem ipsum — use realistic Chinese/English civil engineering lab equipment terminology (e.g., 结构健康监测传感器, 振动分析仪, 荷载测试系统)
+Accessibility: include aria-label attributes on all interactive elements
+Performance: use React.memo on pure display components, useMemo for derived data
+--- ## 🚀 Output Format
+For each file, provide:
+
+The full file path as a header
+The complete, production-ready code (no truncation, no // ... rest of code shortcuts)
+Brief inline comments explaining non-obvious design decisions
+Begin with tailwind.config.ts, then globals.css, then layout.tsx, then each component in the order listed in the file structure. Ensure every file compiles without errors and the complete system renders a visually stunning, fully functional cockpit dashboard shell ready for 3D scene and data integration.
+设计成可以中文/英文版本之间切换的界面。
