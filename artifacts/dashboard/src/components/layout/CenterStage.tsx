@@ -7,7 +7,7 @@ import {
 import { Building2, Network, GitBranch } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { motion } from "framer-motion";
-import { BuildingModel } from "../dashboard/3d/BuildingModel";
+import { ResearchInstituteBuilding } from "../dashboard/3d/ResearchInstituteBuilding";
 import { EquipmentSchematic } from "../dashboard/3d/EquipmentSchematic";
 import { NetworkTopology } from "../dashboard/3d/NetworkTopology";
 import { EquipmentDetail } from "../dashboard/EquipmentDetail";
@@ -64,7 +64,7 @@ export function CenterStage() {
       {/* 3D Canvas Area */}
       <div className="flex-1 relative z-0">
         <div className="absolute inset-0">
-          {activeView === 'building' && <BuildingModel />}
+          {activeView === 'building' && <ResearchInstituteBuilding />}
           {activeView === 'schematic' && <EquipmentSchematic />}
           {activeView === 'topology' && <NetworkTopology />}
         </div>
