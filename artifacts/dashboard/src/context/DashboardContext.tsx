@@ -3,6 +3,8 @@ import { useGetRecentAlerts, getGetRecentAlertsQueryKey } from '@workspace/api-c
 import type { Alert } from '../types';
 import { ViewType, UserRole, Language } from '../types';
 
+export type RightPanelTab = 'situational' | 'alerts';
+
 interface DashboardContextType {
   activeView: ViewType;
   setActiveView: (view: ViewType) => void;
@@ -14,6 +16,8 @@ interface DashboardContextType {
   setSelectedEquipmentId: (id: string | null) => void;
   alerts: Alert[];
   alertsLoading: boolean;
+  rightPanelTab: RightPanelTab;
+  setRightPanelTab: (tab: RightPanelTab) => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -23,6 +27,7 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [userRole, setUserRole] = useState<UserRole>('operator');
   const [language, setLanguage] = useState<Language>('zh');
   const [selectedEquipmentId, setSelectedEquipmentId] = useState<string | null>(null);
+  const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('situational');
 
   const { data: alertsData = [], isLoading: alertsLoading } = useGetRecentAlerts({
     query: {
@@ -44,6 +49,8 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         setSelectedEquipmentId,
         alerts: alertsData as Alert[],
         alertsLoading,
+        rightPanelTab,
+        setRightPanelTab,
       }}
     >
       {children}

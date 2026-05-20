@@ -5,6 +5,7 @@ import { RightPanel } from "../components/layout/RightPanel";
 import { CenterStage } from "../components/layout/CenterStage";
 import { BottomDataStrip } from "../components/layout/BottomDataStrip";
 import { AICopilotDrawer } from "../components/ai/AICopilotDrawer";
+import { NavRail } from "../components/layout/NavRail";
 
 export default function Dashboard() {
   return (
@@ -17,6 +18,7 @@ export default function Dashboard() {
       <TopStatusBar />
       
       <div className="flex-1 flex overflow-hidden">
+        <NavRail />
         <LeftPanel />
         <CenterStage />
         <RightPanel />

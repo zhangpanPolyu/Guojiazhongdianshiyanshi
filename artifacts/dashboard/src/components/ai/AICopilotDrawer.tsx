@@ -275,53 +275,63 @@ export function AICopilotDrawer() {
 
   return (
     <>
-      {/* ── Floating trigger button ─────────────────────────────────────── */}
-      <motion.button
-        onClick={() => setIsOpen((o) => !o)}
-        className={cn(
-          "fixed bottom-6 right-6 z-[60]",
-          "w-14 h-14 rounded-full flex items-center justify-center",
-          "text-sci-cyan border border-sci-cyan/40 bg-[#050814]/85 backdrop-blur-md"
-        )}
-        animate={{
-          scale: [1, 1.07, 1],
-          boxShadow: [
-            "0 0 18px rgba(0,240,255,0.22), 0 0 0px rgba(0,240,255,0)",
-            "0 0 32px rgba(0,240,255,0.55), 0 0 60px rgba(0,240,255,0.15)",
-            "0 0 18px rgba(0,240,255,0.22), 0 0 0px rgba(0,240,255,0)",
-          ],
-        }}
-        transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
-        whileHover={{ scale: 1.14 }}
-        whileTap={{ scale: 0.9 }}
-        aria-label="AI 智能助手"
-        title="AI 智能助手"
-      >
-        <AnimatePresence mode="wait">
-          {isOpen ? (
-            <motion.span
-              key="close"
-              initial={{ rotate: -90, opacity: 0, scale: 0.7 }}
-              animate={{ rotate: 0, opacity: 1, scale: 1 }}
-              exit={{ rotate: 90, opacity: 0, scale: 0.7 }}
-              transition={{ duration: 0.18 }}
-            >
-              <X className="w-5 h-5" />
-            </motion.span>
-          ) : (
-            <motion.span
-              key="core"
-              className="flex items-center justify-center"
-              initial={{ rotate: 90, opacity: 0, scale: 0.7 }}
-              animate={{ rotate: 0, opacity: 1, scale: 1 }}
-              exit={{ rotate: -90, opacity: 0, scale: 0.7 }}
-              transition={{ duration: 0.18 }}
-            >
-              <CoreIcon className="w-7 h-7" />
-            </motion.span>
+      {/* ── Floating trigger button + label ────────────────────────────── */}
+      <div className="fixed bottom-6 right-6 z-[60] flex flex-col items-center gap-1.5">
+        <motion.button
+          onClick={() => setIsOpen((o) => !o)}
+          className={cn(
+            "w-14 h-14 rounded-full flex items-center justify-center",
+            "text-sci-cyan border border-sci-cyan/40 bg-[#050814]/85 backdrop-blur-md"
           )}
-        </AnimatePresence>
-      </motion.button>
+          animate={{
+            scale: [1, 1.07, 1],
+            boxShadow: [
+              "0 0 18px rgba(0,240,255,0.22), 0 0 0px rgba(0,240,255,0)",
+              "0 0 32px rgba(0,240,255,0.55), 0 0 60px rgba(0,240,255,0.15)",
+              "0 0 18px rgba(0,240,255,0.22), 0 0 0px rgba(0,240,255,0)",
+            ],
+          }}
+          transition={{ duration: 2.6, repeat: Infinity, ease: "easeInOut" }}
+          whileHover={{ scale: 1.14 }}
+          whileTap={{ scale: 0.9 }}
+          aria-label="AI 智能助手"
+          title="AI 智能助手"
+        >
+          <AnimatePresence mode="wait">
+            {isOpen ? (
+              <motion.span
+                key="close"
+                initial={{ rotate: -90, opacity: 0, scale: 0.7 }}
+                animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                exit={{ rotate: 90, opacity: 0, scale: 0.7 }}
+                transition={{ duration: 0.18 }}
+              >
+                <X className="w-5 h-5" />
+              </motion.span>
+            ) : (
+              <motion.span
+                key="core"
+                className="flex items-center justify-center"
+                initial={{ rotate: 90, opacity: 0, scale: 0.7 }}
+                animate={{ rotate: 0, opacity: 1, scale: 1 }}
+                exit={{ rotate: -90, opacity: 0, scale: 0.7 }}
+                transition={{ duration: 0.18 }}
+              >
+                <CoreIcon className="w-7 h-7" />
+              </motion.span>
+            )}
+          </AnimatePresence>
+        </motion.button>
+
+        {/* Text label — fades out when drawer is open */}
+        <motion.span
+          className="text-[9px] font-mono text-sci-cyan/65 tracking-[0.18em] select-none pointer-events-none"
+          animate={{ opacity: isOpen ? 0 : 1, y: isOpen ? 4 : 0 }}
+          transition={{ duration: 0.2 }}
+        >
+          AI 助手
+        </motion.span>
+      </div>
 
       {/* ── Backdrop ────────────────────────────────────────────────────── */}
       <AnimatePresence>

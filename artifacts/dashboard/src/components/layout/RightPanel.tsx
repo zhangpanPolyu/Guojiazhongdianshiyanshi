@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React from "react";
 import { useDashboard } from "@/context/DashboardContext";
 import { GlassPanel } from "../ui/glass-panel";
 import { MetricCard } from "../ui/metric-card";
@@ -30,11 +30,8 @@ import { getGetRecentAlertsQueryKey } from "@workspace/api-client-react";
 import { AIAlertsTerminal } from "../dashboard/panels/AIAlertsTerminal";
 import { GanttPanel } from "../dashboard/panels/GanttPanel";
 
-type Tab = "situational" | "alerts";
-
 export function RightPanel() {
-  const { language, userRole, alerts, alertsLoading } = useDashboard();
-  const [activeTab, setActiveTab] = useState<Tab>("situational");
+  const { language, userRole, alerts, alertsLoading, rightPanelTab: activeTab, setRightPanelTab: setActiveTab } = useDashboard();
   const queryClient = useQueryClient();
 
   const ackAlert = useAcknowledgeAlert();
