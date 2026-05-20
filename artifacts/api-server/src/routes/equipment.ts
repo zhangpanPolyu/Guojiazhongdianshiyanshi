@@ -230,13 +230,19 @@ router.get("/equipment", (req, res) => {
 
 router.get("/equipment/:id", (req, res) => {
   const item = equipmentData.find((e) => e.id === req.params.id);
-  if (!item) return res.status(404).json({ error: "Not found" });
+  if (!item) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
   res.json(item);
 });
 
 router.get("/equipment/:id/metrics", (req, res) => {
   const item = equipmentData.find((e) => e.id === req.params.id);
-  if (!item) return res.status(404).json({ error: "Not found" });
+  if (!item) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
   res.json(item.metrics);
 });
 

@@ -120,7 +120,7 @@ function InfoItem({ icon, label, children }: { icon: React.ReactNode, label: str
   return (
     <div className="flex flex-col gap-1">
       <div className="flex items-center gap-1.5 text-white/40 text-xs">
-        {React.cloneElement(icon as React.ReactElement, { className: "w-3 h-3" })}
+        <span className="w-3 h-3 flex items-center justify-center [&>svg]:w-3 [&>svg]:h-3">{icon}</span>
         <span>{label}</span>
       </div>
       <div className="text-sm text-white/90 font-medium truncate">

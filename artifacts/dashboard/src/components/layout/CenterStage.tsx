@@ -22,7 +22,7 @@ const tabs = [
 export function CenterStage() {
   const { activeView, setActiveView, language, setSelectedEquipmentId, selectedEquipmentId } = useDashboard();
 
-  const { data: equipment, isLoading } = useListEquipment({
+  const { data: equipment, isLoading } = useListEquipment(undefined, {
     query: { queryKey: getListEquipmentQueryKey() }
   });
 

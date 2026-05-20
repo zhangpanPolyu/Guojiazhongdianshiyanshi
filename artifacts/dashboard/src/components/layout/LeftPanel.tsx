@@ -10,7 +10,7 @@ import {
 import { Activity, Cpu, Server, Wifi, Database } from "lucide-react";
 import { cn } from "@/lib/utils";
 
-const IconMap: Record<string, React.ElementType> = {
+const IconMap: Record<string, React.ComponentType<{ className?: string }>> = {
   activity: Activity,
   cpu: Cpu,
   server: Server,

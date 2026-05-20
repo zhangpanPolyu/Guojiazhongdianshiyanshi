@@ -82,7 +82,10 @@ router.get("/alerts", (req, res) => {
 
 router.post("/alerts/:id/acknowledge", (req, res) => {
   const alert = alerts.find((a) => a.id === req.params.id);
-  if (!alert) return res.status(404).json({ error: "Not found" });
+  if (!alert) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
   alert.acknowledged = true;
   res.json(alert);
 });

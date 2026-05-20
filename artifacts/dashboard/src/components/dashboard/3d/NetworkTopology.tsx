@@ -74,9 +74,7 @@ function ParticleNetwork() {
         <bufferGeometry>
           <bufferAttribute
             attach="attributes-position"
-            count={positions.length / 3}
-            array={positions}
-            itemSize={3}
+            args={[positions, 3]}
           />
         </bufferGeometry>
         <pointsMaterial color="#00F0FF" size={0.05} transparent opacity={0.8} />
