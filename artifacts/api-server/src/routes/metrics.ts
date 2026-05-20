@@ -2,15 +2,59 @@ import { Router, type IRouter } from "express";
 
 const router: IRouter = Router();
 
+interface EnvReading {
+  temperature: number;
+  humidity: number;
+  vibration: number;
+  power: number;
+  timestamp: string;
+}
+
+const HISTORY_SIZE = 20;
+const envHistory: EnvReading[] = [];
+
+function generateReading(): EnvReading {
+  const last = envHistory[envHistory.length - 1];
+  const clamp = (v: number, min: number, max: number) => Math.min(max, Math.max(min, v));
+
+  const temperature = last
+    ? clamp(+(last.temperature + (Math.random() * 0.6 - 0.3)).toFixed(1), 18, 35)
+    : +(22.4 + (Math.random() * 2 - 1)).toFixed(1);
+
+  const humidity = last
+    ? clamp(+(last.humidity + (Math.random() * 1.2 - 0.6)).toFixed(1), 20, 90)
+    : +(65 + (Math.random() * 6 - 3)).toFixed(1);
+
+  const vibration = last
+    ? clamp(+(last.vibration + (Math.random() * 0.08 - 0.04)).toFixed(2), 0.1, 5)
+    : +(0.42 + (Math.random() * 0.2 - 0.1)).toFixed(2);
+
+  const power = last
+    ? clamp(+(last.power + (Math.random() * 4 - 2)).toFixed(1), 100, 200)
+    : +(148.6 + (Math.random() * 10 - 5)).toFixed(1);
+
+  return { temperature, humidity, vibration, power, timestamp: new Date().toISOString() };
+}
+
+function primeHistory() {
+  if (envHistory.length === 0) {
+    for (let i = 0; i < HISTORY_SIZE; i++) {
+      envHistory.push(generateReading());
+    }
+  }
+}
+
 router.get("/metrics/environment", (_req, res) => {
-  const now = new Date().toISOString();
-  res.json({
-    temperature: +(22.4 + (Math.random() * 2 - 1)).toFixed(1),
-    humidity: +(65 + (Math.random() * 6 - 3)).toFixed(1),
-    vibration: +(0.42 + (Math.random() * 0.2 - 0.1)).toFixed(2),
-    power: +(148.6 + (Math.random() * 10 - 5)).toFixed(1),
-    timestamp: now,
-  });
+  primeHistory();
+  const reading = generateReading();
+  envHistory.push(reading);
+  if (envHistory.length > HISTORY_SIZE) envHistory.shift();
+  res.json(reading);
+});
+
+router.get("/metrics/environment/history", (_req, res) => {
+  primeHistory();
+  res.json([...envHistory]);
 });
 
 export default router;

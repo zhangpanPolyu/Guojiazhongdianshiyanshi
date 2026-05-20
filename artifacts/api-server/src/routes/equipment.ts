@@ -243,7 +243,15 @@ router.get("/equipment/:id/metrics", (req, res) => {
     res.status(404).json({ error: "Not found" });
     return;
   }
-  res.json(item.metrics);
+  const liveMetrics = item.metrics.map(m => {
+    if (m.value === 0) return { ...m, timestamp: new Date().toISOString() };
+    const noise = m.value * 0.02;
+    const liveValue = +(m.value + (Math.random() * noise * 2 - noise)).toFixed(
+      m.value % 1 === 0 ? 0 : String(m.value).includes('.') ? String(m.value).split('.')[1].length : 2
+    );
+    return { ...m, value: liveValue, timestamp: new Date().toISOString() };
+  });
+  res.json(liveMetrics);
 });
 
 export default router;

@@ -55,7 +55,10 @@ const recentAlertsData = [
   },
 ];
 
+let healthBase = 74.5;
+
 router.get("/dashboard/summary", (_req, res) => {
+  healthBase = Math.min(95, Math.max(40, +(healthBase + (Math.random() * 0.6 - 0.3)).toFixed(1)));
   res.json({
     totalEquipment: 12,
     runningCount: 7,
@@ -65,7 +68,7 @@ router.get("/dashboard/summary", (_req, res) => {
     maintenanceCount: 1,
     activeAlerts: 5,
     criticalAlerts: 2,
-    healthScore: 74.5,
+    healthScore: healthBase,
   });
 });
 

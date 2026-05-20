@@ -16,11 +16,11 @@ export function EquipmentDetail() {
   const { selectedEquipmentId, setSelectedEquipmentId, language } = useDashboard();
 
   const { data: equipment, isLoading: eqLoading } = useGetEquipment(selectedEquipmentId!, {
-    query: { enabled: !!selectedEquipmentId, queryKey: getGetEquipmentQueryKey(selectedEquipmentId!) }
+    query: { enabled: !!selectedEquipmentId, queryKey: getGetEquipmentQueryKey(selectedEquipmentId!), refetchInterval: 8000 }
   });
 
   const { data: metrics, isLoading: metLoading } = useGetEquipmentMetrics(selectedEquipmentId!, {
-    query: { enabled: !!selectedEquipmentId, queryKey: getGetEquipmentMetricsQueryKey(selectedEquipmentId!) }
+    query: { enabled: !!selectedEquipmentId, queryKey: getGetEquipmentMetricsQueryKey(selectedEquipmentId!), refetchInterval: 5000 }
   });
 
   if (!selectedEquipmentId) return null;

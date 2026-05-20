@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useRef, useEffect, ReactNode } from 'react';
 import { useGetRecentAlerts, getGetRecentAlertsQueryKey } from '@workspace/api-client-react';
 import type { Alert } from '../types';
 import { ViewType, UserRole, Language } from '../types';
@@ -18,6 +18,8 @@ interface DashboardContextType {
   alertsLoading: boolean;
   rightPanelTab: RightPanelTab;
   setRightPanelTab: (tab: RightPanelTab) => void;
+  hasNewAlerts: boolean;
+  clearNewAlerts: () => void;
 }
 
 const DashboardContext = createContext<DashboardContextType | undefined>(undefined);
@@ -28,13 +30,36 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
   const [language, setLanguage] = useState<Language>('zh');
   const [selectedEquipmentId, setSelectedEquipmentId] = useState<string | null>(null);
   const [rightPanelTab, setRightPanelTab] = useState<RightPanelTab>('situational');
+  const [hasNewAlerts, setHasNewAlerts] = useState(false);
+  const seenAlertIdsRef = useRef<Set<string>>(new Set());
+  const initializedRef = useRef(false);
 
   const { data: alertsData = [], isLoading: alertsLoading } = useGetRecentAlerts({
     query: {
       queryKey: getGetRecentAlertsQueryKey(),
-      refetchInterval: 30000,
+      refetchInterval: 7000,
     },
   });
+
+  const alerts = alertsData as Alert[];
+
+  useEffect(() => {
+    if (!alerts.length) return;
+
+    if (!initializedRef.current) {
+      alerts.forEach(a => seenAlertIdsRef.current.add(a.id));
+      initializedRef.current = true;
+      return;
+    }
+
+    const newAlerts = alerts.filter(a => !seenAlertIdsRef.current.has(a.id));
+    if (newAlerts.length > 0) {
+      setHasNewAlerts(true);
+      newAlerts.forEach(a => seenAlertIdsRef.current.add(a.id));
+    }
+  }, [alerts]);
+
+  const clearNewAlerts = () => setHasNewAlerts(false);
 
   return (
     <DashboardContext.Provider
@@ -47,10 +72,12 @@ export function DashboardProvider({ children }: { children: ReactNode }) {
         setLanguage,
         selectedEquipmentId,
         setSelectedEquipmentId,
-        alerts: alertsData as Alert[],
+        alerts,
         alertsLoading,
         rightPanelTab,
         setRightPanelTab,
+        hasNewAlerts,
+        clearNewAlerts,
       }}
     >
       {children}

@@ -29,9 +29,11 @@ import { useQueryClient } from "@tanstack/react-query";
 import { getGetRecentAlertsQueryKey } from "@workspace/api-client-react";
 import { AIAlertsTerminal } from "../dashboard/panels/AIAlertsTerminal";
 import { GanttPanel } from "../dashboard/panels/GanttPanel";
+import { useEnvironmentHistory } from "@/hooks/useEnvironmentHistory";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function RightPanel() {
-  const { language, userRole, alerts, alertsLoading, rightPanelTab: activeTab, setRightPanelTab: setActiveTab } = useDashboard();
+  const { language, userRole, alerts, alertsLoading, hasNewAlerts, clearNewAlerts, rightPanelTab: activeTab, setRightPanelTab: setActiveTab } = useDashboard();
   const queryClient = useQueryClient();
 
   const ackAlert = useAcknowledgeAlert();
@@ -46,6 +48,11 @@ export function RightPanel() {
 
   const criticalCount = alerts.filter(a => a.severity === "critical").length;
 
+  const handleAlertsTabClick = () => {
+    setActiveTab("alerts");
+    clearNewAlerts();
+  };
+
   return (
     <div className="w-80 h-full flex flex-col border-l border-white/10">
       {/* Tab bar */}
@@ -58,10 +65,11 @@ export function RightPanel() {
         />
         <TabButton
           active={activeTab === "alerts"}
-          onClick={() => setActiveTab("alerts")}
+          onClick={handleAlertsTabClick}
           icon={<Bell className="w-3.5 h-3.5" />}
           label={language === "zh" ? "告警中心" : "Alerts"}
           badge={criticalCount > 0 ? criticalCount : undefined}
+          pulseBadge={hasNewAlerts}
         />
       </div>
 
@@ -172,12 +180,14 @@ function TabButton({
   icon,
   label,
   badge,
+  pulseBadge,
 }: {
   active: boolean;
   onClick: () => void;
   icon: React.ReactNode;
   label: string;
   badge?: number;
+  pulseBadge?: boolean;
 }) {
   return (
     <button
@@ -190,9 +200,15 @@ function TabButton({
       {icon}
       {label}
       {badge !== undefined && (
-        <span className="bg-sci-red/25 text-sci-red text-[9px] px-1 py-px rounded-full font-mono border border-sci-red/30 leading-tight">
+        <span className={cn(
+          "bg-sci-red/25 text-sci-red text-[9px] px-1 py-px rounded-full font-mono border border-sci-red/30 leading-tight",
+          pulseBadge && "animate-pulse"
+        )}>
           {badge}
         </span>
+      )}
+      {pulseBadge && badge === undefined && (
+        <span className="absolute top-1 right-4 w-1.5 h-1.5 rounded-full bg-sci-red animate-ping" />
       )}
       {active && (
         <div className="absolute bottom-0 left-2 right-2 h-px bg-sci-cyan shadow-[0_0_6px_var(--sci-cyan)]" />
@@ -203,8 +219,15 @@ function TabButton({
 
 function OperatorWidget({ language }: { language: string }) {
   const { data: env, isLoading } = useGetEnvironmentMetrics({
-    query: { queryKey: getGetEnvironmentMetricsQueryKey(), refetchInterval: 30000 }
+    query: { queryKey: getGetEnvironmentMetricsQueryKey(), refetchInterval: 5000 }
   });
+
+  const { data: history } = useEnvironmentHistory(5000);
+
+  const tempHistory = history?.map(r => r.temperature);
+  const humidityHistory = history?.map(r => r.humidity);
+  const vibrationHistory = history?.map(r => r.vibration);
+  const powerHistory = history?.map(r => r.power);
 
   return (
     <GlassPanel className="h-[280px] p-4 flex flex-col gap-3 shrink-0">
@@ -228,6 +251,7 @@ function OperatorWidget({ language }: { language: string }) {
             status={env.temperature > 28 ? "warning" : "normal"}
             icon={<Thermometer />}
             className="p-3"
+            sparklineData={tempHistory}
           />
           <MetricCard
             title={language === "zh" ? "湿度" : "Humidity"}
@@ -236,6 +260,7 @@ function OperatorWidget({ language }: { language: string }) {
             status={env.humidity > 60 || env.humidity < 30 ? "warning" : "normal"}
             icon={<Droplets />}
             className="p-3"
+            sparklineData={humidityHistory}
           />
           <MetricCard
             title={language === "zh" ? "振动" : "Vibration"}
@@ -244,6 +269,7 @@ function OperatorWidget({ language }: { language: string }) {
             status={env.vibration > 2.0 ? "critical" : "normal"}
             icon={<Activity />}
             className="p-3"
+            sparklineData={vibrationHistory}
           />
           <MetricCard
             title={language === "zh" ? "功耗" : "Power"}
@@ -252,6 +278,7 @@ function OperatorWidget({ language }: { language: string }) {
             status="normal"
             icon={<Zap />}
             className="p-3"
+            sparklineData={powerHistory}
           />
         </div>
       )}
@@ -261,7 +288,7 @@ function OperatorWidget({ language }: { language: string }) {
 
 function EngineerWidget({ language }: { language: string }) {
   const { data: env, isLoading } = useGetEnvironmentMetrics({
-    query: { queryKey: getGetEnvironmentMetricsQueryKey(), refetchInterval: 15000 }
+    query: { queryKey: getGetEnvironmentMetricsQueryKey(), refetchInterval: 5000 }
   });
 
   return (
@@ -320,12 +347,23 @@ function ParameterRow({ label, value, threshold, pct, color }: {
     <div className="space-y-1">
       <div className="flex justify-between items-baseline">
         <span className="text-xs text-white/60">{label}</span>
-        <span className="text-xs font-mono text-white/90 font-bold">{value}</span>
+        <AnimatePresence mode="wait">
+          <motion.span
+            key={value}
+            className="text-xs font-mono text-white/90 font-bold"
+            initial={{ opacity: 0.4, y: -4 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.25 }}
+          >
+            {value}
+          </motion.span>
+        </AnimatePresence>
       </div>
       <div className="h-1 w-full bg-white/10 rounded-full overflow-hidden">
-        <div
-          className={cn("h-full rounded-full transition-all duration-700", color)}
-          style={{ width: `${Math.max(2, pct)}%` }}
+        <motion.div
+          className={cn("h-full rounded-full", color)}
+          animate={{ width: `${Math.max(2, pct)}%` }}
+          transition={{ duration: 0.5, ease: "easeOut" }}
         />
       </div>
       <div className="text-[10px] text-white/30 font-mono">{threshold}</div>
@@ -335,7 +373,7 @@ function ParameterRow({ label, value, threshold, pct, color }: {
 
 function ManagerWidget({ language }: { language: string }) {
   const { data: summary, isLoading } = useGetDashboardSummary({
-    query: { queryKey: getGetDashboardSummaryQueryKey(), refetchInterval: 30000 }
+    query: { queryKey: getGetDashboardSummaryQueryKey(), refetchInterval: 5000 }
   });
 
   return (
@@ -353,14 +391,22 @@ function ManagerWidget({ language }: { language: string }) {
             <div className="text-[10px] text-white/40 uppercase tracking-widest mb-1">
               {language === "zh" ? "系统健康度" : "System Health"}
             </div>
-            <div className={cn(
-              "text-3xl font-bold font-mono",
-              summary.healthScore >= 80 ? "text-sci-green" :
-              summary.healthScore >= 60 ? "text-sci-amber" : "text-sci-red"
-            )}>
-              {summary.healthScore.toFixed(1)}
-              <span className="text-sm text-white/50 ml-1">%</span>
-            </div>
+            <AnimatePresence mode="wait">
+              <motion.div
+                key={summary.healthScore.toFixed(1)}
+                className={cn(
+                  "text-3xl font-bold font-mono",
+                  summary.healthScore >= 80 ? "text-sci-green" :
+                  summary.healthScore >= 60 ? "text-sci-amber" : "text-sci-red"
+                )}
+                initial={{ opacity: 0.4, scale: 0.96 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ duration: 0.3 }}
+              >
+                {summary.healthScore.toFixed(1)}
+                <span className="text-sm text-white/50 ml-1">%</span>
+              </motion.div>
+            </AnimatePresence>
           </div>
 
           <div className="grid grid-cols-2 gap-2">

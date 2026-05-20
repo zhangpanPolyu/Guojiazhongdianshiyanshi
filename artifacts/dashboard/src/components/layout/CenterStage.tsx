@@ -23,7 +23,7 @@ export function CenterStage() {
   const { activeView, setActiveView, language, setSelectedEquipmentId, selectedEquipmentId } = useDashboard();
 
   const { data: equipment, isLoading } = useListEquipment(undefined, {
-    query: { queryKey: getListEquipmentQueryKey() }
+    query: { queryKey: getListEquipmentQueryKey(), refetchInterval: 8000 }
   });
 
   return (

@@ -1,16 +1,35 @@
 import React from "react";
 import { useDashboard } from "@/context/DashboardContext";
 import { useGetDashboardSummary, getGetDashboardSummaryQueryKey, useGetEnvironmentMetrics, getGetEnvironmentMetricsQueryKey } from "@workspace/api-client-react";
+import { motion, AnimatePresence } from "framer-motion";
+
+function AnimatedValue({ value, className }: { value: string | number; className: string }) {
+  const key = String(value);
+  return (
+    <AnimatePresence mode="wait">
+      <motion.span
+        key={key}
+        className={className}
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: 6 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+      >
+        {value}
+      </motion.span>
+    </AnimatePresence>
+  );
+}
 
 export function BottomDataStrip() {
   const { language } = useDashboard();
-  
+
   const { data: summary } = useGetDashboardSummary({
-    query: { queryKey: getGetDashboardSummaryQueryKey(), refetchInterval: 30000 }
+    query: { queryKey: getGetDashboardSummaryQueryKey(), refetchInterval: 5000 }
   });
 
   const { data: env } = useGetEnvironmentMetrics({
-    query: { queryKey: getGetEnvironmentMetricsQueryKey(), refetchInterval: 30000 }
+    query: { queryKey: getGetEnvironmentMetricsQueryKey(), refetchInterval: 5000 }
   });
 
   if (!summary || !env) return <div className="h-20 border-t border-white/10 bg-sci-bg/90 backdrop-blur-md" />;
@@ -29,17 +48,17 @@ export function BottomDataStrip() {
     <div className="h-20 border-t border-white/10 bg-sci-bg/95 backdrop-blur-md overflow-hidden flex items-center relative z-50">
       <div className="absolute left-0 top-0 bottom-0 w-16 bg-gradient-to-r from-sci-bg to-transparent z-10" />
       <div className="absolute right-0 top-0 bottom-0 w-16 bg-gradient-to-l from-sci-bg to-transparent z-10" />
-      
+
       <div className="flex animate-ticker-scroll whitespace-nowrap">
-        {/* Render twice for continuous looping */}
         {[...metrics, ...metrics].map((metric, i) => (
           <div key={i} className="flex items-center mx-8">
             <span className="text-xs text-white/50 uppercase tracking-widest mr-3">
               {metric.label}
             </span>
-            <span className={`font-mono text-lg font-bold ${metric.color}`}>
-              {metric.value}
-            </span>
+            <AnimatedValue
+              value={metric.value}
+              className={`font-mono text-lg font-bold ${metric.color}`}
+            />
             <span className="text-sci-cyan/30 text-xs ml-16">◆</span>
           </div>
         ))}
