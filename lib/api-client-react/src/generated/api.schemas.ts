@@ -122,6 +122,23 @@ export interface EnvironmentMetrics {
   timestamp: string;
 }
 
+export type AiChatMessageRole = typeof AiChatMessageRole[keyof typeof AiChatMessageRole];
+
+
+export const AiChatMessageRole = {
+  user: 'user',
+  assistant: 'assistant',
+} as const;
+
+export interface AiChatMessage {
+  role: AiChatMessageRole;
+  content: string;
+}
+
+export interface AiChatRequest {
+  messages: AiChatMessage[];
+}
+
 export type ListEquipmentParams = {
 category?: string;
 status?: string;

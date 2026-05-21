@@ -6,6 +6,9 @@
  * OpenAPI spec version: 0.1.0
  */
 
+export * from './aiChatMessage';
+export * from './aiChatMessageRole';
+export * from './aiChatRequest';
 export * from './alert';
 export * from './alertSeverity';
 export * from './dashboardSummary';

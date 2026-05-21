@@ -6,6 +6,7 @@ import categoriesRouter from "./categories";
 import dashboardRouter from "./dashboard";
 import metricsRouter from "./metrics";
 import scheduleRouter from "./schedule";
+import aiRouter from "./ai";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use(categoriesRouter);
 router.use(dashboardRouter);
 router.use(metricsRouter);
 router.use(scheduleRouter);
+router.use(aiRouter);
 
 export default router;

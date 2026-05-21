@@ -103,7 +103,8 @@ export const GetEquipmentMetricsResponse = zod.array(GetEquipmentMetricsResponse
  */
 export const ListAlertsQueryParams = zod.object({
   "acknowledged": zod.coerce.boolean().optional(),
-  "severity": zod.coerce.string().optional()
+  "severity": zod.coerce.string().optional(),
+  "equipmentId": zod.coerce.string().optional()
 })
 
 export const ListAlertsResponseItem = zod.object({
@@ -205,6 +206,17 @@ export const GetEnvironmentMetricsResponse = zod.object({
   "vibration": zod.number(),
   "power": zod.number(),
   "timestamp": zod.string()
+})
+
+
+/**
+ * @summary Send messages to AI Copilot and receive a streaming response
+ */
+export const AiChatBody = zod.object({
+  "messages": zod.array(zod.object({
+  "role": zod.enum(['user', 'assistant']),
+  "content": zod.string()
+}))
 })
 
 

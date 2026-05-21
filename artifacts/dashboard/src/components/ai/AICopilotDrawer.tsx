@@ -12,6 +12,11 @@ interface Message {
   displayedText: string;
 }
 
+interface ChatMessage {
+  role: "user" | "assistant";
+  content: string;
+}
+
 // ─── Static data ─────────────────────────────────────────────────────────────
 
 const QUICK_COMMANDS = [
@@ -20,6 +25,7 @@ const QUICK_COMMANDS = [
   { label: "分析本季度科研产出与设备使用关联度", emoji: "📈" },
 ];
 
+// Scripted fallback pool — used when the API is unavailable
 const AI_RESPONSES: Record<string, string> = {
   "一键生成科技部自评数据表":
     "📊 正在整合全年设备使用数据...\n\n已生成科技部开放共享年度自评报告草稿：\n• 年均有效工作机时：2,847 h\n• 对外服务收入：较去年 +23.4%\n• 用户评价均分：4.6 / 5.0\n• 培训人次：218 人次\n\nExcel 报表已就绪，是否同步至国家重大科研基础设施平台？",
@@ -57,7 +63,7 @@ const INITIAL_MESSAGES: Message[] = [
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
-function getAIResponse(text: string): string {
+function getFallbackResponse(text: string): string {
   for (const key of Object.keys(AI_RESPONSES)) {
     if (text.includes(key.slice(0, 7))) return AI_RESPONSES[key];
   }
@@ -66,6 +72,15 @@ function getAIResponse(text: string): string {
 
 function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+}
+
+function toChatHistory(messages: Message[]): ChatMessage[] {
+  return messages
+    .filter((m) => m.id !== "init-0")
+    .map((m) => ({
+      role: m.role === "user" ? "user" : "assistant",
+      content: m.text,
+    }));
 }
 
 // ─── CoreIcon ─────────────────────────────────────────────────────────────────
@@ -105,7 +120,8 @@ function CoreIcon({ className }: { className?: string }) {
 
 function ChatBubble({ msg }: { msg: Message }) {
   const isUser = msg.role === "user";
-  const typing = msg.displayedText.length < msg.text.length;
+  // cursor blinks while the message is still being typed/streamed
+  const typing = msg.displayedText.length < msg.text.length || (msg.role === "ai" && msg.text === "" && msg.displayedText === "");
 
   return (
     <div className={cn("flex items-start gap-2", isUser ? "flex-row-reverse" : "flex-row")}>
@@ -162,16 +178,19 @@ export function AICopilotDrawer() {
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  // Typewriter is only used for fallback (scripted) responses
   const typingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const thinkTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const replyTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   // Auto-scroll on new messages / thinking state
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, isThinking]);
 
-  // Typewriter: runs when message list length changes (new message added)
+  // ── Typewriter effect (fallback / scripted responses only) ────────────────
+  // Runs when a message with displayedText shorter than text appears.
+  // During live streaming we keep text === displayedText, so this timer never
+  // fires for streamed messages; it's only needed for scripted fallback.
   useEffect(() => {
     const pending = [...messages]
       .reverse()
@@ -201,7 +220,7 @@ export function AICopilotDrawer() {
           m.id === targetId ? { ...m, displayedText: msg.text.slice(0, nextLen) } : m
         );
       });
-    }, 22);
+    }, 18);
 
     return () => {
       if (typingTimerRef.current) {
@@ -216,13 +235,12 @@ export function AICopilotDrawer() {
   useEffect(() => {
     return () => {
       if (typingTimerRef.current) clearInterval(typingTimerRef.current);
-      if (thinkTimerRef.current) clearTimeout(thinkTimerRef.current);
-      if (replyTimerRef.current) clearTimeout(replyTimerRef.current);
+      if (abortControllerRef.current) abortControllerRef.current.abort();
     };
   }, []);
 
   const sendMessage = useCallback(
-    (text: string) => {
+    async (text: string) => {
       const trimmed = text.trim();
       if (!trimmed || isThinking) return;
 
@@ -238,26 +256,120 @@ export function AICopilotDrawer() {
       if (textareaRef.current) textareaRef.current.style.height = "auto";
       setIsThinking(true);
 
-      thinkTimerRef.current = setTimeout(() => {
+      const aiMsgId = makeId();
+      let streamStarted = false;
+
+      try {
+        const history = toChatHistory([...messages, userMsg]);
+
+        abortControllerRef.current = new AbortController();
+
+        const response = await fetch("/api/ai/chat", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ messages: history }),
+          signal: abortControllerRef.current.signal,
+        });
+
+        if (!response.ok || !response.body) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+
+        // Switch from "thinking" dots to an empty AI bubble once the stream begins
         setIsThinking(false);
-        const responseText = getAIResponse(trimmed);
-        const aiMsg: Message = {
-          id: makeId(),
-          role: "ai",
-          text: responseText,
-          displayedText: "",
-        };
-        setMessages((prev) => [...prev, aiMsg]);
-      }, 1300);
+        streamStarted = true;
+        setMessages((prev) => [
+          ...prev,
+          { id: aiMsgId, role: "ai", text: "", displayedText: "" },
+        ]);
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = "";
+        let serverError: string | null = null;
+
+        outer: while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split("\n");
+          buffer = lines.pop() ?? "";
+
+          for (const line of lines) {
+            if (!line.startsWith("data: ")) continue;
+            const raw = line.slice(6).trim();
+            if (!raw) continue;
+
+            let parsed: { content?: string; done?: boolean; error?: string };
+            try {
+              parsed = JSON.parse(raw) as typeof parsed;
+            } catch {
+              // Malformed SSE line — skip
+              continue;
+            }
+
+            if (parsed.done) break outer;
+
+            if (parsed.error) {
+              // Server explicitly reported an error — record and break
+              serverError = parsed.error;
+              break outer;
+            }
+
+            if (parsed.content) {
+              // Stream tokens: keep text === displayedText so they appear immediately
+              setMessages((prev) =>
+                prev.map((m) =>
+                  m.id === aiMsgId
+                    ? {
+                        ...m,
+                        text: m.text + parsed.content,
+                        displayedText: m.displayedText + parsed.content,
+                      }
+                    : m
+                )
+              );
+            }
+          }
+        }
+
+        // If the server sent an explicit error mid-stream, fall through to fallback
+        if (serverError) throw new Error(serverError);
+      } catch (err) {
+        const isAbort = err instanceof DOMException && err.name === "AbortError";
+        if (isAbort) return;
+
+        // Fallback to scripted response
+        setIsThinking(false);
+        const fallbackText = getFallbackResponse(trimmed);
+
+        setMessages((prev) => {
+          if (!streamStarted) {
+            // No bubble yet — add a new one (typewriter will animate it)
+            return [
+              ...prev,
+              { id: aiMsgId, role: "ai", text: fallbackText, displayedText: "" },
+            ];
+          }
+          // Bubble exists but had no / partial content — replace text, keep
+          // displayedText at current position so typewriter catches up
+          return prev.map((m) =>
+            m.id === aiMsgId
+              ? { ...m, text: fallbackText }
+              : m
+          );
+        });
+      }
     },
-    [isThinking]
+    [isThinking, messages]
   );
 
   const handleBeamSend = () => {
     if (!inputText.trim() || isThinking) return;
     setBeaming(true);
     setTimeout(() => setBeaming(false), 500);
-    sendMessage(inputText);
+    void sendMessage(inputText);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
@@ -396,7 +508,7 @@ export function AICopilotDrawer() {
                 {QUICK_COMMANDS.map((cmd) => (
                   <button
                     key={cmd.label}
-                    onClick={() => sendMessage(cmd.label)}
+                    onClick={() => void sendMessage(cmd.label)}
                     disabled={isThinking}
                     className={cn(
                       "text-left text-[11px] px-3.5 py-2 rounded-full border font-mono",
@@ -471,7 +583,7 @@ export function AICopilotDrawer() {
                 </div>
               </div>
               <p className="text-[9px] font-mono text-white/18 text-center mt-2 leading-tight">
-                AI 回复为模拟演示 · 接入真实大模型后可实现全自动化实验室管控
+                由 GPT 大模型驱动 · AI 回复仅供参考
               </p>
             </div>
           </motion.aside>

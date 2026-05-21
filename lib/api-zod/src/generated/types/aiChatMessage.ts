@@ -5,9 +5,9 @@
  * Equipment Management Digital Twin API
  * OpenAPI spec version: 0.1.0
  */
+import type { AiChatMessageRole } from './aiChatMessageRole';
 
-export type ListAlertsParams = {
-acknowledged?: boolean;
-severity?: string;
-equipmentId?: string;
-};
+export interface AiChatMessage {
+  role: AiChatMessageRole;
+  content: string;
+}

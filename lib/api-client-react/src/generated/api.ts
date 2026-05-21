@@ -20,6 +20,7 @@ import type {
 } from '@tanstack/react-query';
 
 import type {
+  AiChatRequest,
   Alert,
   DashboardSummary,
   EnvironmentMetrics,
@@ -33,7 +34,7 @@ import type {
 } from './api.schemas';
 
 import { customFetch } from '../custom-fetch';
-import type { ErrorType } from '../custom-fetch';
+import type { ErrorType , BodyType } from '../custom-fetch';
 
 type AwaitedInput<T> = PromiseLike<T> | T;
 
@@ -898,4 +899,75 @@ export function useGetEnvironmentMetrics<TData = Awaited<ReturnType<typeof getEn
 
 
 
+
+export const getAiChatUrl = () => {
+
+
+
+
+  return `/api/ai/chat`
+}
+
+/**
+ * @summary Send messages to AI Copilot and receive a streaming response
+ */
+export const aiChat = async (aiChatRequest: AiChatRequest, options?: RequestInit): Promise<unknown> => {
+
+  return customFetch<unknown>(getAiChatUrl(),
+  {
+    ...options,
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', ...options?.headers },
+    body: JSON.stringify(
+      aiChatRequest,)
+  }
+);}
+
+
+
+
+export const getAiChatMutationOptions = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof aiChat>>, TError,{data: BodyType<AiChatRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+): UseMutationOptions<Awaited<ReturnType<typeof aiChat>>, TError,{data: BodyType<AiChatRequest>}, TContext> => {
+
+const mutationKey = ['aiChat'];
+const {mutation: mutationOptions, request: requestOptions} = options ?
+      options.mutation && 'mutationKey' in options.mutation && options.mutation.mutationKey ?
+      options
+      : {...options, mutation: {...options.mutation, mutationKey}}
+      : {mutation: { mutationKey, }, request: undefined};
+
+
+
+
+      const mutationFn: MutationFunction<Awaited<ReturnType<typeof aiChat>>, {data: BodyType<AiChatRequest>}> = (props) => {
+          const {data} = props ?? {};
+
+          return  aiChat(data,requestOptions)
+        }
+
+
+
+
+
+
+  return  { mutationFn, ...mutationOptions }}
+
+    export type AiChatMutationResult = NonNullable<Awaited<ReturnType<typeof aiChat>>>
+    export type AiChatMutationBody = BodyType<AiChatRequest>
+    export type AiChatMutationError = ErrorType<unknown>
+
+    /**
+ * @summary Send messages to AI Copilot and receive a streaming response
+ */
+export const useAiChat = <TError = ErrorType<unknown>,
+    TContext = unknown>(options?: { mutation?:UseMutationOptions<Awaited<ReturnType<typeof aiChat>>, TError,{data: BodyType<AiChatRequest>}, TContext>, request?: SecondParameter<typeof customFetch>}
+ ): UseMutationResult<
+        Awaited<ReturnType<typeof aiChat>>,
+        TError,
+        {data: BodyType<AiChatRequest>},
+        TContext
+      > => {
+      return useMutation(getAiChatMutationOptions(options));
+    }
 
