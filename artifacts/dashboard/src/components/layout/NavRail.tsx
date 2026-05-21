@@ -92,6 +92,10 @@ const VIEW_MAP: Partial<Record<NavId, ViewType>> = {
   building:  "building",
   schematic: "schematic",
   topology:  "topology",
+  workbench: "workbench",
+  decision:  "decision",
+  cctv:      "cctv",
+  hazard:    "hazard",
 };
 const RIGHT_TAB_MAP: Partial<Record<NavId, RightPanelTab>> = {
   overview:  "situational",

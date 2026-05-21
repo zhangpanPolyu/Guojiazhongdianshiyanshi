@@ -11,7 +11,7 @@ import type {
   MetricTrend
 } from "@workspace/api-client-react";
 
-export type ViewType = 'building' | 'schematic' | 'topology';
+export type ViewType = 'building' | 'schematic' | 'topology' | 'workbench' | 'decision' | 'cctv' | 'hazard';
 export type UserRole = 'operator' | 'engineer' | 'manager';
 export type Language = 'zh' | 'en';
 
