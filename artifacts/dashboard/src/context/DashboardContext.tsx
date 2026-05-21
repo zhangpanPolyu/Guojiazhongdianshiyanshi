@@ -3,7 +3,7 @@ import { useGetRecentAlerts, getGetRecentAlertsQueryKey } from '@workspace/api-c
 import type { Alert } from '../types';
 import { ViewType, UserRole, Language } from '../types';
 
-export type RightPanelTab = 'situational' | 'alerts';
+export type RightPanelTab = 'situational' | 'role';
 
 interface DashboardContextType {
   activeView: ViewType;

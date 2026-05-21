@@ -46,7 +46,7 @@ const VIEW_MAP: Partial<Record<NavId, ViewType>> = {
 const RIGHT_TAB_MAP: Partial<Record<NavId, RightPanelTab>> = {
   overview: "situational",
   schedule: "situational",
-  alerts: "alerts",
+  alerts: "role",
 };
 
 // ─── Component ───────────────────────────────────────────────────────────────
@@ -57,7 +57,7 @@ export function NavRail() {
 
   // Derive active nav item from context state
   const deriveActive = (): NavId => {
-    if (rightPanelTab === "alerts") return "alerts";
+    if (rightPanelTab === "role") return "alerts";
     if (activeView === "schematic") return "schematic";
     if (activeView === "topology") return "topology";
     return "overview";

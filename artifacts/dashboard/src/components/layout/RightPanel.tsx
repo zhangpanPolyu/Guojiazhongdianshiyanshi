@@ -33,7 +33,7 @@ import { useEnvironmentHistory } from "@/hooks/useEnvironmentHistory";
 import { motion, AnimatePresence } from "framer-motion";
 
 export function RightPanel() {
-  const { language, userRole, alerts, alertsLoading, hasNewAlerts, clearNewAlerts, rightPanelTab: activeTab, setRightPanelTab: setActiveTab } = useDashboard();
+  const { language, userRole, alerts, alertsLoading, hasNewAlerts, clearNewAlerts, rightPanelTab: activeTab, setRightPanelTab: setActiveTab, } = useDashboard();
   const queryClient = useQueryClient();
 
   const ackAlert = useAcknowledgeAlert();
@@ -48,8 +48,8 @@ export function RightPanel() {
 
   const criticalCount = alerts.filter(a => a.severity === "critical").length;
 
-  const handleAlertsTabClick = () => {
-    setActiveTab("alerts");
+  const handleRoleTabClick = () => {
+    setActiveTab("role");
     clearNewAlerts();
   };
 
@@ -64,10 +64,10 @@ export function RightPanel() {
           label="AI 态势感知"
         />
         <TabButton
-          active={activeTab === "alerts"}
-          onClick={handleAlertsTabClick}
+          active={activeTab === "role"}
+          onClick={handleRoleTabClick}
           icon={<Bell className="w-3.5 h-3.5" />}
-          label={language === "zh" ? "告警中心" : "Alerts"}
+          label={language === "zh" ? "角色视图" : "Role View"}
           badge={criticalCount > 0 ? criticalCount : undefined}
           pulseBadge={hasNewAlerts}
         />
@@ -81,8 +81,8 @@ export function RightPanel() {
         </div>
       )}
 
-      {/* Alerts + role-specific tab */}
-      {activeTab === "alerts" && (
+      {/* Role view tab: alerts + role-specific widget */}
+      {activeTab === "role" && (
         <div className="flex-1 flex flex-col p-4 gap-4 overflow-hidden">
           {/* Alerts panel */}
           <GlassPanel className="flex-1 flex flex-col overflow-hidden">
