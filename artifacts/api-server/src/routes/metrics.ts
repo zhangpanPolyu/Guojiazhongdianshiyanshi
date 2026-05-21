@@ -1,4 +1,6 @@
 import { Router, type IRouter } from "express";
+import { db, sensorHistory } from "@workspace/db";
+import { desc, inArray } from "drizzle-orm";
 
 const router: IRouter = Router();
 
@@ -11,7 +13,10 @@ interface EnvReading {
 }
 
 const HISTORY_SIZE = 20;
+const PERSIST_INTERVAL_MS = 10_000;
 const envHistory: EnvReading[] = [];
+let initialized = false;
+let persistTimer: ReturnType<typeof setInterval> | null = null;
 
 function generateReading(): EnvReading {
   const last = envHistory[envHistory.length - 1];
@@ -36,24 +41,81 @@ function generateReading(): EnvReading {
   return { temperature, humidity, vibration, power, timestamp: new Date().toISOString() };
 }
 
-function primeHistory() {
+async function persistCurrentReading(): Promise<void> {
+  const last = envHistory[envHistory.length - 1];
+  if (!last) return;
+  try {
+    await db.insert(sensorHistory).values({
+      temperature: last.temperature,
+      humidity: last.humidity,
+      vibration: last.vibration,
+      power: last.power,
+    });
+
+    const rows = await db
+      .select({ id: sensorHistory.id })
+      .from(sensorHistory)
+      .orderBy(desc(sensorHistory.recordedAt));
+
+    if (rows.length > HISTORY_SIZE) {
+      const idsToDelete = rows.slice(HISTORY_SIZE).map((r) => r.id);
+      await db.delete(sensorHistory).where(inArray(sensorHistory.id, idsToDelete));
+    }
+  } catch (_err) {
+    // non-fatal — in-memory ring buffer is still valid
+  }
+}
+
+async function initHistory(): Promise<void> {
+  if (initialized) return;
+  initialized = true;
+
+  try {
+    const rows = await db
+      .select()
+      .from(sensorHistory)
+      .orderBy(desc(sensorHistory.recordedAt))
+      .limit(HISTORY_SIZE);
+
+    if (rows.length > 0) {
+      const sorted = [...rows].reverse();
+      for (const row of sorted) {
+        envHistory.push({
+          temperature: row.temperature,
+          humidity: row.humidity,
+          vibration: row.vibration,
+          power: row.power,
+          timestamp: row.recordedAt.toISOString(),
+        });
+      }
+    }
+  } catch (_err) {
+    // DB unavailable — fall through to synthetic priming below
+  }
+
   if (envHistory.length === 0) {
     for (let i = 0; i < HISTORY_SIZE; i++) {
       envHistory.push(generateReading());
     }
   }
+
+  if (!persistTimer) {
+    persistTimer = setInterval(() => {
+      void persistCurrentReading();
+    }, PERSIST_INTERVAL_MS);
+  }
 }
 
-router.get("/metrics/environment", (_req, res) => {
-  primeHistory();
+router.get("/metrics/environment", async (_req, res) => {
+  await initHistory();
   const reading = generateReading();
   envHistory.push(reading);
   if (envHistory.length > HISTORY_SIZE) envHistory.shift();
   res.json(reading);
 });
 
-router.get("/metrics/environment/history", (_req, res) => {
-  primeHistory();
+router.get("/metrics/environment/history", async (_req, res) => {
+  await initHistory();
   res.json([...envHistory]);
 });
 
