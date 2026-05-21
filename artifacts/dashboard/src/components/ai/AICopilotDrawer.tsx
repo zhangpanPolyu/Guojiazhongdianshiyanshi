@@ -26,6 +26,10 @@ interface ChatMessage {
   content: string;
 }
 
+// ─── Constants ────────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = "ai_copilot_history_v1";
+
 // ─── Static data ─────────────────────────────────────────────────────────────
 
 const QUICK_COMMANDS = [
@@ -75,6 +79,94 @@ const INITIAL_MESSAGES: Message[] = [
     },
   },
 ];
+
+// ─── localStorage helpers ─────────────────────────────────────────────────────
+
+/** Whitelisted shape persisted to localStorage.
+ *  - `text` is the operational message content (equipment queries, AI responses).
+ *  - No usernames, email addresses, or other PII are part of the Message type.
+ *  - bookingHint contains only equipmentId, equipmentName, date, and timeSlot —
+ *    all operational identifiers, no personal data.
+ */
+interface PersistedMessage {
+  id: string;
+  role: "user" | "ai";
+  text: string;
+  bookingHint?: BookingHint;
+  bookingActed?: boolean;
+}
+
+const VALID_ROLES = new Set<string>(["user", "ai"]);
+
+/** Strict runtime validation of a single persisted entry. Returns true only
+ *  when every field matches the expected shape and type. */
+function isValidPersistedMessage(v: unknown): v is PersistedMessage {
+  if (!v || typeof v !== "object") return false;
+  const m = v as Record<string, unknown>;
+  if (typeof m.id !== "string" || !m.id) return false;
+  if (!VALID_ROLES.has(m.role as string)) return false;
+  if (typeof m.text !== "string") return false;
+  if (m.bookingHint !== undefined) {
+    const h = m.bookingHint as Record<string, unknown>;
+    if (
+      typeof h.equipmentId !== "string" ||
+      typeof h.equipmentName !== "string" ||
+      typeof h.date !== "string" ||
+      typeof h.timeSlot !== "string"
+    )
+      return false;
+  }
+  if (m.bookingActed !== undefined && typeof m.bookingActed !== "boolean")
+    return false;
+  return true;
+}
+
+/** Serialize messages to localStorage using only the whitelisted fields.
+ *  displayedText is intentionally omitted — it is always reconstructed from
+ *  `text` on restore so restored messages never re-trigger the typewriter effect. */
+function saveHistory(messages: Message[]) {
+  try {
+    const serializable: PersistedMessage[] = messages.map((m) => {
+      const entry: PersistedMessage = { id: m.id, role: m.role, text: m.text };
+      if (m.bookingHint) {
+        entry.bookingHint = {
+          equipmentId: m.bookingHint.equipmentId,
+          equipmentName: m.bookingHint.equipmentName,
+          date: m.bookingHint.date,
+          timeSlot: m.bookingHint.timeSlot,
+        };
+      }
+      if (m.bookingActed !== undefined) entry.bookingActed = m.bookingActed;
+      return entry;
+    });
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(serializable));
+  } catch {
+    // quota exceeded or private-browsing block — silently ignore
+  }
+}
+
+/** Load and strictly validate persisted messages from localStorage.
+ *  Returns null if nothing is stored, the data is malformed, or any entry
+ *  fails schema validation. */
+function loadHistory(): Message[] | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (!raw) return null;
+    const parsed: unknown = JSON.parse(raw);
+    if (!Array.isArray(parsed) || parsed.length === 0) return null;
+    if (!parsed.every(isValidPersistedMessage)) return null;
+    return (parsed as PersistedMessage[]).map((m) => ({
+      id: m.id,
+      role: m.role,
+      text: m.text,
+      displayedText: m.text,
+      bookingHint: m.bookingHint,
+      bookingActed: m.bookingActed,
+    }));
+  } catch {
+    return null;
+  }
+}
 
 // ─── Helpers ─────────────────────────────────────────────────────────────────
 
@@ -334,7 +426,9 @@ function ThinkingBubble() {
 
 export function AICopilotDrawer() {
   const [isOpen, setIsOpen] = useState(false);
-  const [messages, setMessages] = useState<Message[]>(INITIAL_MESSAGES);
+  const [messages, setMessages] = useState<Message[]>(
+    () => loadHistory() ?? INITIAL_MESSAGES
+  );
   const [isThinking, setIsThinking] = useState(false);
   const [inputText, setInputText] = useState("");
   const [beaming, setBeaming] = useState(false);
@@ -347,6 +441,18 @@ export function AICopilotDrawer() {
   const abortControllerRef = useRef<AbortController | null>(null);
   // Track 30-second auto-dismiss timers per message
   const bookingTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
+  // When clear history is triggered we must skip the very next persist cycle
+  // so the reset-to-demo state is not immediately re-saved to localStorage.
+  const skipPersistRef = useRef(false);
+
+  // ── Persist messages to localStorage on every change ─────────────────────
+  useEffect(() => {
+    if (skipPersistRef.current) {
+      skipPersistRef.current = false;
+      return;
+    }
+    saveHistory(messages);
+  }, [messages]);
 
   // Auto-scroll on new messages / thinking state
   useEffect(() => {
@@ -633,6 +739,18 @@ export function AICopilotDrawer() {
     [isThinking, messages]
   );
 
+  const handleClearHistory = useCallback(() => {
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+    } catch {
+      // ignore
+    }
+    // Skip the next persist cycle so the reset-to-demo state is not
+    // immediately re-saved, keeping localStorage truly cleared.
+    skipPersistRef.current = true;
+    setMessages(INITIAL_MESSAGES);
+  }, []);
+
   const handleBeamSend = () => {
     if (!inputText.trim() || isThinking) return;
     setBeaming(true);
@@ -759,12 +877,21 @@ export function AICopilotDrawer() {
                   </div>
                 </div>
               </div>
-              <button
-                onClick={() => setIsOpen(false)}
-                className="text-white/35 hover:text-white/75 transition-colors p-1 rounded"
-              >
-                <X className="w-4 h-4" />
-              </button>
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={handleClearHistory}
+                  title="清除记录"
+                  className="text-[10px] font-mono text-white/30 hover:text-white/65 transition-colors px-2 py-1 rounded border border-white/10 hover:border-white/25"
+                >
+                  清除记录
+                </button>
+                <button
+                  onClick={() => setIsOpen(false)}
+                  className="text-white/35 hover:text-white/75 transition-colors p-1 rounded"
+                >
+                  <X className="w-4 h-4" />
+                </button>
+              </div>
             </div>
 
             {/* Quick commands */}
