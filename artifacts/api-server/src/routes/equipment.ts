@@ -254,4 +254,45 @@ router.get("/equipment/:id/metrics", (req, res) => {
   res.json(liveMetrics);
 });
 
+interface Reservation {
+  id: string;
+  equipmentId: string;
+  equipmentName: string;
+  date: string;
+  timeSlot: string;
+  createdAt: string;
+  requestedBy: string;
+}
+
+const reservations: Reservation[] = [];
+
+router.post("/equipment/:id/reserve", (req, res) => {
+  const { date, timeSlot, requestedBy, equipmentName } = req.body as {
+    date?: string;
+    timeSlot?: string;
+    requestedBy?: string;
+    equipmentName?: string;
+  };
+
+  const item = equipmentData.find((e) => e.id === req.params.id);
+
+  const reservation: Reservation = {
+    id: `RES-${Date.now()}`,
+    equipmentId: req.params.id,
+    equipmentName: equipmentName ?? item?.name ?? req.params.id,
+    date: date ?? "周五",
+    timeSlot: timeSlot ?? "全天",
+    createdAt: new Date().toISOString(),
+    requestedBy: requestedBy ?? "用户",
+  };
+
+  reservations.push(reservation);
+  res.status(201).json({ success: true, reservation });
+});
+
+router.get("/equipment/:id/reservations", (req, res) => {
+  const result = reservations.filter((r) => r.equipmentId === req.params.id);
+  res.json(result);
+});
+
 export default router;

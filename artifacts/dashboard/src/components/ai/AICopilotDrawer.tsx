@@ -1,15 +1,24 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Mic, Send } from "lucide-react";
+import { X, Mic, Send, CheckCircle2, XCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
+
+interface BookingHint {
+  equipmentId: string;
+  equipmentName: string;
+  date: string;
+  timeSlot: string;
+}
 
 interface Message {
   id: string;
   role: "user" | "ai";
   text: string;
   displayedText: string;
+  bookingHint?: BookingHint;
+  bookingActed?: boolean;
 }
 
 interface ChatMessage {
@@ -58,6 +67,12 @@ const INITIAL_MESSAGES: Message[] = [
     text: "🔍 正在检索设备日历...\n\n恒温恒湿箱周四 10:00–16:00 已被深地工程课题组占用。\n\n💡 智能建议：本周五全天该设备空闲，或使用实验室另一台备用环境箱（EQ-012）。是否为您一键更改预约至周五？",
     displayedText:
       "🔍 正在检索设备日历...\n\n恒温恒湿箱周四 10:00–16:00 已被深地工程课题组占用。\n\n💡 智能建议：本周五全天该设备空闲，或使用实验室另一台备用环境箱（EQ-012）。是否为您一键更改预约至周五？",
+    bookingHint: {
+      equipmentId: "EQ-THERMO",
+      equipmentName: "恒温恒湿箱",
+      date: "周五",
+      timeSlot: "全天",
+    },
   },
 ];
 
@@ -81,6 +96,76 @@ function toChatHistory(messages: Message[]): ChatMessage[] {
       role: m.role === "user" ? "user" : "assistant",
       content: m.text,
     }));
+}
+
+/** Detect if an AI message contains a booking suggestion and extract the hint. */
+function detectBookingHint(text: string): BookingHint | null {
+  // Must contain a booking suggestion pattern
+  const hasBookingSuggestion =
+    (text.includes("是否") && text.includes("预约")) ||
+    text.includes("一键更改预约") ||
+    (text.includes("是否") && text.includes("一键"));
+  if (!hasBookingSuggestion) return null;
+
+  // Extract the SUGGESTED date — suggestion phrases usually follow the conflicted slot,
+  // so prefer an explicit "至周X / 改为周X" pattern, then fall back to the last weekday.
+  let date = "周五"; // sensible default matching the demo content
+  const toDateMatch = text.match(/(?:至|更改为|调整为|改为|改到)\s*(周[一二三四五六日天])/);
+  if (toDateMatch) {
+    date = toDateMatch[1];
+  } else {
+    const allDates = [...text.matchAll(/周[一二三四五六日天]/g)];
+    if (allDates.length > 0) {
+      // Last weekday is almost always the suggested slot, not the conflicted one
+      date = allDates[allDates.length - 1][0];
+    }
+  }
+
+  // Extract time slot
+  const timeSlot = text.includes("全天")
+    ? "全天"
+    : (() => {
+        const rangeMatch = text.match(/(\d{1,2}:\d{2})[–\-—至到](\d{1,2}:\d{2})/g);
+        return rangeMatch ? rangeMatch[rangeMatch.length - 1] : "全天";
+      })();
+
+  // Extract equipment name — look for known patterns
+  let equipmentId = "EQ-DEMO";
+  let equipmentName = "设备";
+
+  const equipmentPatterns: Array<{ pattern: RegExp | string; id: string; name: string }> = [
+    { pattern: "恒温恒湿箱", id: "EQ-THERMO", name: "恒温恒湿箱" },
+    { pattern: "离心机", id: "EQ-CENTRIFUGE", name: "离心机" },
+    { pattern: "振动台", id: "EQ010", name: "地震模拟振动台" },
+    { pattern: "振动分析仪", id: "EQ002", name: "振动分析仪" },
+    { pattern: "荷载测试系统", id: "EQ003", name: "荷载测试系统" },
+    { pattern: "疲劳测试机", id: "EQ007", name: "疲劳测试机" },
+    { pattern: /EQ-012/i, id: "EQ012", name: "备用环境箱（EQ-012）" },
+    { pattern: /EQ-(\d{3})/i, id: "", name: "" },
+  ];
+
+  for (const { pattern, id, name } of equipmentPatterns) {
+    const matched =
+      typeof pattern === "string"
+        ? text.includes(pattern)
+        : pattern.test(text);
+    if (matched) {
+      if (id) {
+        equipmentId = id;
+        equipmentName = name;
+      } else {
+        // Dynamic EQ-XXX match
+        const m = text.match(/EQ-(\d{3})/i);
+        if (m) {
+          equipmentId = `EQ${m[1]}`;
+          equipmentName = `设备（EQ-${m[1]}）`;
+        }
+      }
+      break;
+    }
+  }
+
+  return { equipmentId, equipmentName, date, timeSlot };
 }
 
 // ─── CoreIcon ─────────────────────────────────────────────────────────────────
@@ -116,33 +201,111 @@ function CoreIcon({ className }: { className?: string }) {
   );
 }
 
+// ─── BookingActionRow ────────────────────────────────────────────────────────
+
+interface BookingActionRowProps {
+  hint: BookingHint;
+  onConfirm: () => void;
+  onDismiss: () => void;
+  isConfirming: boolean;
+}
+
+function BookingActionRow({ hint, onConfirm, onDismiss, isConfirming }: BookingActionRowProps) {
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 6, scale: 0.97 }}
+      animate={{ opacity: 1, y: 0, scale: 1 }}
+      exit={{ opacity: 0, y: -4, scale: 0.96 }}
+      transition={{ duration: 0.22, ease: "easeOut" }}
+      className="ml-8 mt-2 flex items-center gap-2 flex-wrap"
+    >
+      <div className="text-[10px] font-mono text-white/40 mr-0.5">
+        {hint.equipmentName} · {hint.date} {hint.timeSlot}
+      </div>
+      <button
+        onClick={onConfirm}
+        disabled={isConfirming}
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-mono",
+          "border border-sci-cyan/40 bg-sci-cyan/10 text-sci-cyan",
+          "hover:bg-sci-cyan/20 hover:border-sci-cyan/70 transition-all duration-150",
+          "disabled:opacity-50 disabled:cursor-not-allowed"
+        )}
+      >
+        <CheckCircle2 className="w-3 h-3 shrink-0" />
+        {isConfirming ? "预约中..." : "确认预约"}
+      </button>
+      <button
+        onClick={onDismiss}
+        disabled={isConfirming}
+        className={cn(
+          "flex items-center gap-1.5 px-3 py-1.5 rounded-full text-[11px] font-mono",
+          "border border-white/15 bg-white/5 text-white/45",
+          "hover:bg-white/10 hover:text-white/65 hover:border-white/25 transition-all duration-150",
+          "disabled:opacity-50 disabled:cursor-not-allowed"
+        )}
+      >
+        <XCircle className="w-3 h-3 shrink-0" />
+        取消
+      </button>
+    </motion.div>
+  );
+}
+
 // ─── Chat bubbles ────────────────────────────────────────────────────────────
 
-function ChatBubble({ msg }: { msg: Message }) {
+interface ChatBubbleProps {
+  msg: Message;
+  onConfirmBooking?: (msgId: string) => void;
+  onDismissBooking?: (msgId: string) => void;
+  confirmingId?: string | null;
+}
+
+function ChatBubble({ msg, onConfirmBooking, onDismissBooking, confirmingId }: ChatBubbleProps) {
   const isUser = msg.role === "user";
   // cursor blinks while the message is still being typed/streamed
   const typing = msg.displayedText.length < msg.text.length || (msg.role === "ai" && msg.text === "" && msg.displayedText === "");
+  const showBookingAction =
+    !isUser &&
+    msg.bookingHint != null &&
+    !msg.bookingActed &&
+    msg.displayedText === msg.text && // only after typing is done
+    msg.text.length > 0;
 
   return (
-    <div className={cn("flex items-start gap-2", isUser ? "flex-row-reverse" : "flex-row")}>
-      {!isUser && (
-        <div className="w-6 h-6 shrink-0 mt-0.5 rounded-full border border-sci-cyan/40 bg-sci-cyan/10 flex items-center justify-center">
-          <CoreIcon className="w-3.5 h-3.5 text-sci-cyan" />
+    <div className={cn("flex flex-col", isUser ? "items-end" : "items-start")}>
+      <div className={cn("flex items-start gap-2", isUser ? "flex-row-reverse" : "flex-row")}>
+        {!isUser && (
+          <div className="w-6 h-6 shrink-0 mt-0.5 rounded-full border border-sci-cyan/40 bg-sci-cyan/10 flex items-center justify-center">
+            <CoreIcon className="w-3.5 h-3.5 text-sci-cyan" />
+          </div>
+        )}
+        <div
+          className={cn(
+            "max-w-[82%] px-3.5 py-2.5 rounded-2xl text-[12px] leading-relaxed whitespace-pre-wrap break-words",
+            isUser
+              ? "bg-sci-cyan/14 border border-sci-cyan/30 text-white/90 rounded-tr-sm"
+              : "bg-white/7 border border-white/10 text-white/82 rounded-tl-sm"
+          )}
+        >
+          {msg.displayedText}
+          {typing && (
+            <span className="ml-0.5 inline-block w-1.5 h-[13px] bg-sci-cyan/80 animate-pulse rounded-sm align-middle" />
+          )}
         </div>
-      )}
-      <div
-        className={cn(
-          "max-w-[82%] px-3.5 py-2.5 rounded-2xl text-[12px] leading-relaxed whitespace-pre-wrap break-words",
-          isUser
-            ? "bg-sci-cyan/14 border border-sci-cyan/30 text-white/90 rounded-tr-sm"
-            : "bg-white/7 border border-white/10 text-white/82 rounded-tl-sm"
-        )}
-      >
-        {msg.displayedText}
-        {typing && (
-          <span className="ml-0.5 inline-block w-1.5 h-[13px] bg-sci-cyan/80 animate-pulse rounded-sm align-middle" />
-        )}
       </div>
+
+      <AnimatePresence>
+        {showBookingAction && (
+          <BookingActionRow
+            key={`booking-${msg.id}`}
+            hint={msg.bookingHint!}
+            isConfirming={confirmingId === msg.id}
+            onConfirm={() => onConfirmBooking?.(msg.id)}
+            onDismiss={() => onDismissBooking?.(msg.id)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 }
@@ -175,22 +338,47 @@ export function AICopilotDrawer() {
   const [isThinking, setIsThinking] = useState(false);
   const [inputText, setInputText] = useState("");
   const [beaming, setBeaming] = useState(false);
+  const [confirmingId, setConfirmingId] = useState<string | null>(null);
 
   const chatEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
   // Typewriter is only used for fallback (scripted) responses
   const typingTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+  // Track 30-second auto-dismiss timers per message
+  const bookingTimersRef = useRef<Map<string, ReturnType<typeof setTimeout>>>(new Map());
 
   // Auto-scroll on new messages / thinking state
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length, isThinking]);
 
+  // ── 30-second auto-dismiss for unacted booking hints ─────────────────────
+  useEffect(() => {
+    messages.forEach((msg) => {
+      if (msg.role === "ai" && msg.bookingHint && !msg.bookingActed) {
+        if (!bookingTimersRef.current.has(msg.id)) {
+          const timer = setTimeout(() => {
+            setMessages((prev) =>
+              prev.map((m) =>
+                m.id === msg.id ? { ...m, bookingActed: true } : m
+              )
+            );
+            bookingTimersRef.current.delete(msg.id);
+          }, 30_000);
+          bookingTimersRef.current.set(msg.id, timer);
+        }
+      } else if (msg.bookingActed) {
+        const timer = bookingTimersRef.current.get(msg.id);
+        if (timer) {
+          clearTimeout(timer);
+          bookingTimersRef.current.delete(msg.id);
+        }
+      }
+    });
+  }, [messages]);
+
   // ── Typewriter effect (fallback / scripted responses only) ────────────────
-  // Runs when a message with displayedText shorter than text appears.
-  // During live streaming we keep text === displayedText, so this timer never
-  // fires for streamed messages; it's only needed for scripted fallback.
   useEffect(() => {
     const pending = [...messages]
       .reverse()
@@ -236,7 +424,76 @@ export function AICopilotDrawer() {
     return () => {
       if (typingTimerRef.current) clearInterval(typingTimerRef.current);
       if (abortControllerRef.current) abortControllerRef.current.abort();
+      bookingTimersRef.current.forEach(clearTimeout);
     };
+  }, []);
+
+  // ── Booking confirm/dismiss handlers ──────────────────────────────────────
+
+  const handleConfirmBooking = useCallback(async (msgId: string) => {
+    const msg = messages.find((m) => m.id === msgId);
+    if (!msg?.bookingHint) return;
+
+    const { bookingHint } = msg;
+    setConfirmingId(msgId);
+
+    try {
+      const res = await fetch(`/api/equipment/${bookingHint.equipmentId}/reserve`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          equipmentName: bookingHint.equipmentName,
+          date: bookingHint.date,
+          timeSlot: bookingHint.timeSlot,
+          requestedBy: "用户",
+        }),
+      });
+
+      if (!res.ok) {
+        throw new Error(`HTTP ${res.status}`);
+      }
+
+      const data = (await res.json()) as { success?: boolean; reservation?: { id: string } };
+
+      if (!data.success) {
+        throw new Error("Reservation not confirmed by server");
+      }
+
+      setMessages((prev) => {
+        const updated = prev.map((m) =>
+          m.id === msgId ? { ...m, bookingActed: true } : m
+        );
+        const reservationId = data.reservation?.id ?? "RES-OK";
+        const successMsg: Message = {
+          id: makeId(),
+          role: "ai",
+          text: `✅ 预约成功！\n\n已为您将 ${bookingHint.equipmentName} 预约至${bookingHint.date}${bookingHint.timeSlot !== "全天" ? ` ${bookingHint.timeSlot}` : "全天"}。\n\n预约编号：${reservationId}\n\n如需修改或取消，请告知。`,
+          displayedText: "",
+        };
+        return [...updated, successMsg];
+      });
+    } catch {
+      setMessages((prev) => {
+        const updated = prev.map((m) =>
+          m.id === msgId ? { ...m, bookingActed: true } : m
+        );
+        const errMsg: Message = {
+          id: makeId(),
+          role: "ai",
+          text: `⚠️ 预约请求发送失败，请稍后重试或联系实验室管理员。`,
+          displayedText: "",
+        };
+        return [...updated, errMsg];
+      });
+    } finally {
+      setConfirmingId(null);
+    }
+  }, [messages]);
+
+  const handleDismissBooking = useCallback((msgId: string) => {
+    setMessages((prev) =>
+      prev.map((m) => (m.id === msgId ? { ...m, bookingActed: true } : m))
+    );
   }, []);
 
   const sendMessage = useCallback(
@@ -305,20 +562,17 @@ export function AICopilotDrawer() {
             try {
               parsed = JSON.parse(raw) as typeof parsed;
             } catch {
-              // Malformed SSE line — skip
               continue;
             }
 
             if (parsed.done) break outer;
 
             if (parsed.error) {
-              // Server explicitly reported an error — record and break
               serverError = parsed.error;
               break outer;
             }
 
             if (parsed.content) {
-              // Stream tokens: keep text === displayedText so they appear immediately
               setMessages((prev) =>
                 prev.map((m) =>
                   m.id === aiMsgId
@@ -334,8 +588,18 @@ export function AICopilotDrawer() {
           }
         }
 
-        // If the server sent an explicit error mid-stream, fall through to fallback
         if (serverError) throw new Error(serverError);
+
+        // After stream completes, detect booking hint from final text
+        setMessages((prev) => {
+          const aiMsg = prev.find((m) => m.id === aiMsgId);
+          if (!aiMsg) return prev;
+          const hint = detectBookingHint(aiMsg.text);
+          if (!hint) return prev;
+          return prev.map((m) =>
+            m.id === aiMsgId ? { ...m, bookingHint: hint } : m
+          );
+        });
       } catch (err) {
         const isAbort = err instanceof DOMException && err.name === "AbortError";
         if (isAbort) return;
@@ -343,20 +607,24 @@ export function AICopilotDrawer() {
         // Fallback to scripted response
         setIsThinking(false);
         const fallbackText = getFallbackResponse(trimmed);
+        const hint = detectBookingHint(fallbackText);
 
         setMessages((prev) => {
           if (!streamStarted) {
-            // No bubble yet — add a new one (typewriter will animate it)
             return [
               ...prev,
-              { id: aiMsgId, role: "ai", text: fallbackText, displayedText: "" },
+              {
+                id: aiMsgId,
+                role: "ai",
+                text: fallbackText,
+                displayedText: "",
+                bookingHint: hint ?? undefined,
+              },
             ];
           }
-          // Bubble exists but had no / partial content — replace text, keep
-          // displayedText at current position so typewriter catches up
           return prev.map((m) =>
             m.id === aiMsgId
-              ? { ...m, text: fallbackText }
+              ? { ...m, text: fallbackText, bookingHint: hint ?? undefined }
               : m
           );
         });
@@ -528,7 +796,13 @@ export function AICopilotDrawer() {
             {/* Chat messages */}
             <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 scrollbar-hide">
               {messages.map((msg) => (
-                <ChatBubble key={msg.id} msg={msg} />
+                <ChatBubble
+                  key={msg.id}
+                  msg={msg}
+                  onConfirmBooking={handleConfirmBooking}
+                  onDismissBooking={handleDismissBooking}
+                  confirmingId={confirmingId}
+                />
               ))}
               {isThinking && <ThinkingBubble />}
               <div ref={chatEndRef} />
