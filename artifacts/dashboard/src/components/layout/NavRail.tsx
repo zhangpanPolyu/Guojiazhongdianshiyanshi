@@ -114,7 +114,7 @@ export function NavRail() {
 
   const [activeNav, setActiveNav] = useState<NavId>(deriveActive);
   const [expandedGroups, setExpandedGroups] = useState<Set<GroupId>>(
-    new Set(["digital-twin", "operations"])
+    new Set()
   );
 
   const criticalCount = alerts.filter((a) => a.severity === "critical").length;
