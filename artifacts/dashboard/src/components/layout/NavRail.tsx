@@ -104,7 +104,7 @@ export function NavRail() {
       </div>
 
       {/* Main nav */}
-      <nav className="flex-1 flex flex-col items-center py-2 gap-0.5 overflow-hidden">
+      <nav className="flex-1 flex flex-col items-center py-1 gap-0 overflow-y-auto scrollbar-hide min-h-0">
         {NAV_ITEMS.map((item) => {
           const isActive = activeNav === item.id;
           const badge =
@@ -159,7 +159,7 @@ function RailItem({
       onClick={onClick}
       title={label}
       className={cn(
-        "relative w-11 rounded-xl flex flex-col items-center justify-center py-2 gap-[3px]",
+        "relative w-11 rounded-xl flex flex-col items-center justify-center py-1.5 gap-[2px]",
         "transition-all duration-200 group",
         isActive
           ? "bg-sci-cyan/10 text-sci-cyan shadow-[inset_0_0_12px_rgba(0,240,255,0.08)]"
