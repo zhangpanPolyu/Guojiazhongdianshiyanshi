@@ -20,5 +20,7 @@ export * from './healthStatus';
 export * from './listAlertsParams';
 export * from './listEquipmentParams';
 export * from './metric';
+export * from './metricHistory';
+export * from './metricHistoryEntry';
 export * from './metricTrend';
 export * from './statusBreakdown';

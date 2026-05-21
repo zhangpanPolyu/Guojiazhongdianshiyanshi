@@ -30,6 +30,7 @@ import type {
   ListAlertsParams,
   ListEquipmentParams,
   Metric,
+  MetricHistory,
   StatusBreakdown
 } from './api.schemas';
 
@@ -293,7 +294,7 @@ export const getGetEquipmentMetricsUrl = (id: string,) => {
 }
 
 /**
- * @summary Get metrics history for an equipment
+ * @summary Get live metrics for equipment
  */
 export const getEquipmentMetrics = async (id: string, options?: RequestInit): Promise<Metric[]> => {
 
@@ -340,7 +341,7 @@ export type GetEquipmentMetricsQueryError = ErrorType<unknown>
 
 
 /**
- * @summary Get metrics history for an equipment
+ * @summary Get live metrics for equipment
  */
 
 export function useGetEquipmentMetrics<TData = Awaited<ReturnType<typeof getEquipmentMetrics>>, TError = ErrorType<unknown>>(
@@ -349,6 +350,83 @@ export function useGetEquipmentMetrics<TData = Awaited<ReturnType<typeof getEqui
  ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
 
   const queryOptions = getGetEquipmentMetricsQueryOptions(id,options)
+
+  const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+
+
+
+
+
+
+export const getGetEquipmentMetricsHistoryUrl = (id: string,) => {
+
+
+
+
+  return `/api/equipment/${id}/metrics/history`
+}
+
+/**
+ * @summary Get time-series metric history for equipment (last 24h in hourly buckets)
+ */
+export const getEquipmentMetricsHistory = async (id: string, options?: RequestInit): Promise<MetricHistory[]> => {
+
+  return customFetch<MetricHistory[]>(getGetEquipmentMetricsHistoryUrl(id),
+  {
+    ...options,
+    method: 'GET'
+
+
+  }
+);}
+
+
+
+
+
+export const getGetEquipmentMetricsHistoryQueryKey = (id: string,) => {
+    return [
+    `/api/equipment/${id}/metrics/history`
+    ] as const;
+    }
+
+
+export const getGetEquipmentMetricsHistoryQueryOptions = <TData = Awaited<ReturnType<typeof getEquipmentMetricsHistory>>, TError = ErrorType<void>>(id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEquipmentMetricsHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+) => {
+
+const {query: queryOptions, request: requestOptions} = options ?? {};
+
+  const queryKey =  queryOptions?.queryKey ?? getGetEquipmentMetricsHistoryQueryKey(id);
+
+
+
+    const queryFn: QueryFunction<Awaited<ReturnType<typeof getEquipmentMetricsHistory>>> = ({ signal }) => getEquipmentMetricsHistory(id, { signal, ...requestOptions });
+
+
+
+
+
+   return  { queryKey, queryFn, enabled: !!(id), ...queryOptions} as UseQueryOptions<Awaited<ReturnType<typeof getEquipmentMetricsHistory>>, TError, TData> & { queryKey: QueryKey }
+}
+
+export type GetEquipmentMetricsHistoryQueryResult = NonNullable<Awaited<ReturnType<typeof getEquipmentMetricsHistory>>>
+export type GetEquipmentMetricsHistoryQueryError = ErrorType<void>
+
+
+/**
+ * @summary Get time-series metric history for equipment (last 24h in hourly buckets)
+ */
+
+export function useGetEquipmentMetricsHistory<TData = Awaited<ReturnType<typeof getEquipmentMetricsHistory>>, TError = ErrorType<void>>(
+ id: string, options?: { query?:UseQueryOptions<Awaited<ReturnType<typeof getEquipmentMetricsHistory>>, TError, TData>, request?: SecondParameter<typeof customFetch>}
+
+ ):  UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+
+  const queryOptions = getGetEquipmentMetricsHistoryQueryOptions(id,options)
 
   const query = useQuery(queryOptions) as  UseQueryResult<TData, TError> & { queryKey: QueryKey };
 

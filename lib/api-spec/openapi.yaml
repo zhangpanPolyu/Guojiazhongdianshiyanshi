@@ -91,7 +91,7 @@ paths:
     get:
       operationId: getEquipmentMetrics
       tags: [equipment]
-      summary: Get metrics history for an equipment
+      summary: Get live metrics for equipment
       parameters:
         - name: id
           in: path
@@ -107,6 +107,29 @@ paths:
                 type: array
                 items:
                   $ref: "#/components/schemas/Metric"
+
+  /equipment/{id}/metrics/history:
+    get:
+      operationId: getEquipmentMetricsHistory
+      tags: [equipment]
+      summary: Get time-series metric history for equipment (last 24h in hourly buckets)
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Metric history per key
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/MetricHistory"
+        "404":
+          description: Not found
 
   /alerts:
     get:
@@ -444,6 +467,36 @@ components:
           type: number
         timestamp:
           type: string
+
+    MetricHistoryEntry:
+      type: object
+      required:
+        - value
+        - timestamp
+      properties:
+        value:
+          type: number
+        timestamp:
+          type: string
+
+    MetricHistory:
+      type: object
+      required:
+        - key
+        - label
+        - unit
+        - history
+      properties:
+        key:
+          type: string
+        label:
+          type: string
+        unit:
+          type: string
+        history:
+          type: array
+          items:
+            $ref: "#/components/schemas/MetricHistoryEntry"
 
     AiChatMessage:
       type: object

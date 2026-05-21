@@ -81,7 +81,7 @@ export const GetEquipmentResponse = zod.object({
 
 
 /**
- * @summary Get metrics history for an equipment
+ * @summary Get live metrics for equipment
  */
 export const GetEquipmentMetricsParams = zod.object({
   "id": zod.coerce.string()
@@ -96,6 +96,25 @@ export const GetEquipmentMetricsResponseItem = zod.object({
   "trend": zod.union([zod.literal('up'),zod.literal('down'),zod.literal('stable'),zod.literal(null)]).nullish()
 })
 export const GetEquipmentMetricsResponse = zod.array(GetEquipmentMetricsResponseItem)
+
+
+/**
+ * @summary Get time-series metric history for equipment (last 24h in hourly buckets)
+ */
+export const GetEquipmentMetricsHistoryParams = zod.object({
+  "id": zod.coerce.string()
+})
+
+export const GetEquipmentMetricsHistoryResponseItem = zod.object({
+  "key": zod.string(),
+  "label": zod.string(),
+  "unit": zod.string(),
+  "history": zod.array(zod.object({
+  "value": zod.number(),
+  "timestamp": zod.string()
+}))
+})
+export const GetEquipmentMetricsHistoryResponse = zod.array(GetEquipmentMetricsHistoryResponseItem)
 
 
 /**

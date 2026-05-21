@@ -122,6 +122,18 @@ export interface EnvironmentMetrics {
   timestamp: string;
 }
 
+export interface MetricHistoryEntry {
+  value: number;
+  timestamp: string;
+}
+
+export interface MetricHistory {
+  key: string;
+  label: string;
+  unit: string;
+  history: MetricHistoryEntry[];
+}
+
 export type AiChatMessageRole = typeof AiChatMessageRole[keyof typeof AiChatMessageRole];
 
 
