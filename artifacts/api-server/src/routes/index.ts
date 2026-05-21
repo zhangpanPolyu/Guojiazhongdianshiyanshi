@@ -7,6 +7,7 @@ import dashboardRouter from "./dashboard";
 import metricsRouter from "./metrics";
 import scheduleRouter from "./schedule";
 import aiRouter from "./ai";
+import pushTokensRouter from "./push-tokens";
 
 const router: IRouter = Router();
 
@@ -18,5 +19,6 @@ router.use(dashboardRouter);
 router.use(metricsRouter);
 router.use(scheduleRouter);
 router.use(aiRouter);
+router.use(pushTokensRouter);
 
 export default router;

@@ -1,4 +1,5 @@
 import { Router, type IRouter } from "express";
+import { getRegisteredTokens, sendPushNotifications } from "./push-tokens";
 
 const router: IRouter = Router();
 
@@ -81,6 +82,56 @@ router.get("/alerts", (req, res) => {
     result = result.filter((a) => a.equipmentId === equipmentId);
   }
   res.json(result);
+});
+
+router.post("/alerts", (req, res) => {
+  const { equipmentId, equipmentName, severity, message, messageEn } = req.body as {
+    equipmentId?: string;
+    equipmentName?: string;
+    severity?: string;
+    message?: string;
+    messageEn?: string;
+  };
+
+  if (!equipmentId || !equipmentName || !severity || !messageEn) {
+    res.status(400).json({ error: "Missing required fields" });
+    return;
+  }
+
+  const newAlert = {
+    id: `ALT${String(alerts.length + 1).padStart(3, "0")}`,
+    equipmentId,
+    equipmentName,
+    severity,
+    message: message ?? messageEn,
+    messageEn,
+    timestamp: new Date().toISOString(),
+    acknowledged: false,
+  };
+
+  alerts.unshift(newAlert);
+
+  if (severity === "critical" || severity === "warning") {
+    const tokens = Array.from(getRegisteredTokens());
+    if (tokens.length > 0) {
+      const SEVERITY_TITLES: Record<string, string> = {
+        critical: "CRITICAL FAULT",
+        warning: "WARNING",
+      };
+      sendPushNotifications(
+        tokens.map((token) => ({
+          to: token,
+          sound: "default" as const,
+          title: SEVERITY_TITLES[severity] ?? severity.toUpperCase(),
+          body: `${equipmentName}: ${messageEn}`,
+          data: { equipmentId, alertId: newAlert.id },
+          priority: severity === "critical" ? ("high" as const) : ("normal" as const),
+        }))
+      );
+    }
+  }
+
+  res.status(201).json(newAlert);
 });
 
 router.post("/alerts/:id/acknowledge", (req, res) => {
