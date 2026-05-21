@@ -1,13 +1,51 @@
 import React, { useEffect, useState } from "react";
 import { GlassPanel } from "../../ui/glass-panel";
 
-const OEE_DATA = [
-  { short: "驾驶模拟器",     pct: 92, status: "运转中", colorVar: "var(--sci-green)" },
-  { short: "MTS 试验台架",   pct: 78, status: "使用中", colorVar: "var(--sci-cyan)" },
-  { short: "地震模拟振动台", pct: 84, status: "预约中", colorVar: "var(--sci-cyan)" },
-  { short: "高低温试验箱",   pct: 61, status: "警告",   colorVar: "var(--sci-amber)" },
-  { short: "冷冻干燥机",     pct:  0, status: "闲置",   colorVar: "rgba(255,255,255,0.25)" },
-  { short: "高低温低气压箱", pct: 47, status: "检修中", colorVar: "var(--sci-red)" },
+const STATUS_PCT: Record<string, number> = {
+  running:     88,
+  warning:     62,
+  fault:        0,
+  offline:      0,
+  maintenance: 38,
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  running:     "var(--sci-green)",
+  warning:     "var(--sci-amber)",
+  fault:       "var(--sci-red)",
+  offline:     "rgba(255,255,255,0.25)",
+  maintenance: "var(--sci-red)",
+};
+
+const STATUS_LABEL: Record<string, string> = {
+  running:     "运转中",
+  warning:     "警告",
+  fault:       "故障",
+  offline:     "离线",
+  maintenance: "检修中",
+};
+
+interface EquipmentItem {
+  id: string;
+  name: string;
+  status: string;
+}
+
+interface OEEItem {
+  id: string;
+  short: string;
+  pct: number;
+  status: string;
+  colorVar: string;
+}
+
+const MOCK_OEE: OEEItem[] = [
+  { id: "m1", short: "驾驶模拟器",     pct: 92, status: "运转中", colorVar: "var(--sci-green)" },
+  { id: "m2", short: "MTS 试验台架",   pct: 78, status: "使用中", colorVar: "var(--sci-cyan)" },
+  { id: "m3", short: "地震模拟振动台", pct: 84, status: "预约中", colorVar: "var(--sci-cyan)" },
+  { id: "m4", short: "高低温试验箱",   pct: 61, status: "警告",   colorVar: "var(--sci-amber)" },
+  { id: "m5", short: "冷冻干燥机",     pct:  0, status: "闲置",   colorVar: "rgba(255,255,255,0.25)" },
+  { id: "m6", short: "高低温低气压箱", pct: 47, status: "检修中", colorVar: "var(--sci-red)" },
 ];
 
 const SIZE = 42;
@@ -59,8 +97,39 @@ function Ring({ pct, colorVar, animated }: { pct: number; colorVar: string; anim
   );
 }
 
+function equipmentToOEE(eq: EquipmentItem): OEEItem {
+  const status = eq.status ?? "offline";
+  const basePct = STATUS_PCT[status] ?? 0;
+  const noise = status === "running" ? Math.round(Math.random() * 10 - 5) : 0;
+  const pct = Math.min(100, Math.max(0, basePct + noise));
+  return {
+    id: eq.id,
+    short: eq.name,
+    pct,
+    status: STATUS_LABEL[status] ?? status,
+    colorVar: STATUS_COLOR[status] ?? "rgba(255,255,255,0.25)",
+  };
+}
+
 export function OEEPanel() {
+  const [items, setItems] = useState<OEEItem[]>(MOCK_OEE);
   const [animated, setAnimated] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/equipment")
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then((data: EquipmentItem[]) => {
+        if (!cancelled && Array.isArray(data) && data.length > 0) {
+          setItems(data.map(equipmentToOEE));
+        }
+      })
+      .catch(() => {});
+
+    return () => { cancelled = true; };
+  }, []);
+
   useEffect(() => {
     const t = setTimeout(() => setAnimated(true), 350);
     return () => clearTimeout(t);
@@ -72,9 +141,9 @@ export function OEEPanel() {
         核心资产在线率 OEE
       </h3>
       <div className="flex-1 overflow-y-auto scrollbar-hide space-y-1.5">
-        {OEE_DATA.map((item) => (
+        {items.map((item) => (
           <div
-            key={item.short}
+            key={item.id}
             className="flex items-center gap-3 px-2 py-1.5 rounded-lg bg-white/5 border border-white/5 hover:border-white/10 transition-colors"
           >
             <Ring pct={item.pct} colorVar={item.colorVar} animated={animated} />

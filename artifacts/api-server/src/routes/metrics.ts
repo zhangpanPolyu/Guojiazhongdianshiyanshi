@@ -57,4 +57,23 @@ router.get("/metrics/environment/history", (_req, res) => {
   res.json([...envHistory]);
 });
 
+const COMPLIANCE_BASE = [
+  { subject: "年均机时", value: 87, fullMark: 100 },
+  { subject: "共享率",   value: 73, fullMark: 100 },
+  { subject: "服务收入", value: 65, fullMark: 100 },
+  { subject: "用户评价", value: 92, fullMark: 100 },
+  { subject: "培训人次", value: 78, fullMark: 100 },
+];
+
+const complianceLive = [...COMPLIANCE_BASE.map(d => ({ ...d }))];
+
+router.get("/metrics/compliance", (_req, res) => {
+  const result = complianceLive.map(d => {
+    const noise = Math.round((Math.random() * 4 - 2));
+    const value = Math.min(d.fullMark, Math.max(1, d.value + noise));
+    return { subject: d.subject, value, fullMark: d.fullMark };
+  });
+  res.json(result);
+});
+
 export default router;

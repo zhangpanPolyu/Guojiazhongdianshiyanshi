@@ -10,7 +10,14 @@ interface LogLine {
   msg: string;
 }
 
-const POOL: Array<{ level: Level; msg: string }> = [
+interface ApiAlert {
+  id: string;
+  equipmentName: string;
+  severity: string;
+  message: string;
+}
+
+const FALLBACK_POOL: Array<{ level: Level; msg: string }> = [
   { level: "CRITICAL", msg: "[时序大模型] 高低温低气压试验箱气压阀异常振动，预计 120h 后失效，请尽早排查。" },
   { level: "WARN",     msg: "[预测性维保] 离心机#03 轴承温度偏高 +4.2°C，建议 72h 内检查润滑。" },
   { level: "INFO",     msg: "[系统] BIM 算力中心 GPU 集群负载 85%，已触发弹性扩容。" },
@@ -28,29 +35,57 @@ const POOL: Array<{ level: Level; msg: string }> = [
   { level: "CRITICAL", msg: "[时序大模型] 高温蒸汽压力容器安全阀动作频率异常，建议立即检查。" },
 ];
 
+function severityToLevel(severity: string): Level {
+  if (severity === "critical") return "CRITICAL";
+  if (severity === "warning")  return "WARN";
+  return "INFO";
+}
+
+function alertToPoolEntry(alert: ApiAlert): { level: Level; msg: string } {
+  return {
+    level: severityToLevel(alert.severity),
+    msg: `[${alert.equipmentName}] ${alert.message}`,
+  };
+}
+
 let _id = 0;
 const ts = () => new Date().toLocaleTimeString("zh-CN", { hour12: false });
 
-function seedLines(): LogLine[] {
-  return Array.from({ length: 6 }, (_, i) => ({
+function makeLines(pool: Array<{ level: Level; msg: string }>, count: number): LogLine[] {
+  return Array.from({ length: Math.min(count, pool.length) }, (_, i) => ({
     id: ++_id,
     time: ts(),
-    level: POOL[i % POOL.length].level,
-    msg: POOL[i % POOL.length].msg,
+    level: pool[i].level,
+    msg: pool[i].msg,
   }));
 }
 
 export function AIAlertsTerminal() {
-  const [lines, setLines] = useState<LogLine[]>(seedLines);
-  const poolRef = useRef(6);
+  const poolRef = useRef<Array<{ level: Level; msg: string }>>(FALLBACK_POOL);
+  const poolIdxRef = useRef(0);
+  const [lines, setLines] = useState<LogLine[]>(() => makeLines(FALLBACK_POOL, 6));
   const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    fetch("/api/dashboard/recent-alerts")
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then((data: ApiAlert[]) => {
+        if (!Array.isArray(data) || data.length === 0) return;
+        const apiEntries = data.map(alertToPoolEntry);
+        poolRef.current = [...apiEntries, ...FALLBACK_POOL];
+        poolIdxRef.current = apiEntries.length;
+        setLines(makeLines(apiEntries, Math.min(6, apiEntries.length)));
+      })
+      .catch(() => {});
+  }, []);
 
   useEffect(() => {
     let timer: ReturnType<typeof setTimeout>;
 
     const tick = () => {
-      const entry = POOL[poolRef.current % POOL.length];
-      poolRef.current++;
+      const pool = poolRef.current;
+      const entry = pool[poolIdxRef.current % pool.length];
+      poolIdxRef.current++;
       const line: LogLine = { id: ++_id, time: ts(), level: entry.level, msg: entry.msg };
       setLines(prev => [line, ...prev.slice(0, 29)]);
       timer = setTimeout(tick, 2200 + Math.random() * 1800);

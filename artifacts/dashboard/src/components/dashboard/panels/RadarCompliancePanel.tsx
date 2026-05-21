@@ -8,7 +8,7 @@ import {
   ResponsiveContainer,
 } from "recharts";
 
-const TARGET = [
+const MOCK_TARGET = [
   { subject: "年均机时", value: 87, fullMark: 100 },
   { subject: "共享率",   value: 73, fullMark: 100 },
   { subject: "服务收入", value: 65, fullMark: 100 },
@@ -16,17 +16,40 @@ const TARGET = [
   { subject: "培训人次", value: 78, fullMark: 100 },
 ];
 
+interface ComplianceMetric {
+  subject: string;
+  value: number;
+  fullMark: number;
+}
+
 export function RadarCompliancePanel() {
+  const [metrics, setMetrics] = useState<ComplianceMetric[]>(MOCK_TARGET);
   const [revealed, setRevealed] = useState(0);
 
   useEffect(() => {
-    const timers = TARGET.map((_, i) =>
+    let cancelled = false;
+
+    fetch("/api/metrics/compliance")
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then((data: ComplianceMetric[]) => {
+        if (!cancelled && Array.isArray(data) && data.length > 0) {
+          setMetrics(data);
+        }
+      })
+      .catch(() => {});
+
+    return () => { cancelled = true; };
+  }, []);
+
+  useEffect(() => {
+    setRevealed(0);
+    const timers = metrics.map((_, i) =>
       setTimeout(() => setRevealed(i + 1), 400 + i * 200)
     );
     return () => timers.forEach(clearTimeout);
-  }, []);
+  }, [metrics]);
 
-  const data = TARGET.map((d, i) => ({
+  const data = metrics.map((d, i) => ({
     ...d,
     value: i < revealed ? d.value : 0,
   }));

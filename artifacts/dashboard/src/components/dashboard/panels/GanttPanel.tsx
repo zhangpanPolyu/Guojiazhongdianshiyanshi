@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { GlassPanel } from "../../ui/glass-panel";
 
 interface GanttBlock {
@@ -13,46 +13,46 @@ interface GanttRow {
   blocks: GanttBlock[];
 }
 
-const ROWS: GanttRow[] = [
+const MOCK_ROWS: GanttRow[] = [
   {
     name: "离心机",
     blocks: [
-      { start: 7, end: 10, label: "结构稳定", type: "occupied" },
-      { start: 10, end: 12, label: "AI优化", type: "ai-optimized" },
-      { start: 12, end: 15, label: "桩基测试", type: "occupied" },
-      { start: 18, end: 22, label: "岩土试验", type: "occupied" },
+      { start: 7,  end: 10,   label: "结构稳定", type: "occupied" },
+      { start: 10, end: 12,   label: "AI优化",   type: "ai-optimized" },
+      { start: 12, end: 15,   label: "桩基测试", type: "occupied" },
+      { start: 18, end: 22,   label: "岩土试验", type: "occupied" },
     ],
   },
   {
     name: "MTS台架",
     blocks: [
-      { start: 8, end: 11, label: "疲劳测试", type: "occupied" },
-      { start: 11, end: 13, label: "AI优化", type: "ai-optimized" },
-      { start: 13, end: 17, label: "承载力", type: "occupied" },
+      { start: 8,  end: 11,   label: "疲劳测试", type: "occupied" },
+      { start: 11, end: 13,   label: "AI优化",   type: "ai-optimized" },
+      { start: 13, end: 17,   label: "承载力",   type: "occupied" },
     ],
   },
   {
     name: "振动台",
     blocks: [
-      { start: 6, end: 9, label: "地震模拟", type: "occupied" },
-      { start: 9, end: 11, label: "AI优化", type: "ai-optimized" },
-      { start: 11, end: 14, label: "结构动力", type: "occupied" },
-      { start: 20, end: 23, label: "强震测试", type: "occupied" },
+      { start: 6,  end: 9,    label: "地震模拟", type: "occupied" },
+      { start: 9,  end: 11,   label: "AI优化",   type: "ai-optimized" },
+      { start: 11, end: 14,   label: "结构动力", type: "occupied" },
+      { start: 20, end: 23,   label: "强震测试", type: "occupied" },
     ],
   },
   {
     name: "驾驶模拟",
     blocks: [
-      { start: 9, end: 12, label: "驾驶行为", type: "occupied" },
-      { start: 14, end: 18, label: "自动驾驶", type: "occupied" },
-      { start: 18, end: 19.5, label: "AI优化", type: "ai-optimized" },
+      { start: 9,    end: 12,   label: "驾驶行为", type: "occupied" },
+      { start: 14,   end: 18,   label: "自动驾驶", type: "occupied" },
+      { start: 18,   end: 19.5, label: "AI优化",   type: "ai-optimized" },
     ],
   },
   {
     name: "高低温箱",
     blocks: [
-      { start: 7, end: 13, label: "热循环试验", type: "occupied" },
-      { start: 15, end: 20, label: "低温疲劳", type: "occupied" },
+      { start: 7,  end: 13,   label: "热循环试验", type: "occupied" },
+      { start: 15, end: 20,   label: "低温疲劳",   type: "occupied" },
     ],
   },
 ];
@@ -60,9 +60,25 @@ const ROWS: GanttRow[] = [
 const TICK_HOURS = [0, 6, 12, 18, 24];
 
 export function GanttPanel() {
+  const [rows, setRows] = useState<GanttRow[]>(MOCK_ROWS);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    fetch("/api/schedule/today")
+      .then(r => r.ok ? r.json() : Promise.reject(r))
+      .then((data: GanttRow[]) => {
+        if (!cancelled && Array.isArray(data) && data.length > 0) {
+          setRows(data);
+        }
+      })
+      .catch(() => {});
+
+    return () => { cancelled = true; };
+  }, []);
+
   const now = new Date();
   const nowPct = ((now.getHours() + now.getMinutes() / 60) / 24) * 100;
-
   const pct = (h: number) => (h / 24) * 100;
 
   return (
@@ -101,7 +117,7 @@ export function GanttPanel() {
       </div>
 
       <div className="flex-1 overflow-y-auto scrollbar-hide space-y-1.5">
-        {ROWS.map((row) => (
+        {rows.map((row) => (
           <div key={row.name} className="flex items-center gap-2 h-[26px]">
             <div className="w-[56px] shrink-0 text-[9px] font-mono text-white/45 text-right pr-1 truncate">
               {row.name}
