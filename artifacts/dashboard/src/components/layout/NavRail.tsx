@@ -10,13 +10,17 @@ import {
   Bell,
   Settings,
   Building2,
+  Briefcase,
+  BarChart2,
+  Video,
+  ShieldAlert,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import type { ViewType } from "@/types";
 
 // ─── Nav item definition ─────────────────────────────────────────────────────
 
-type NavId = "overview" | "building" | "schematic" | "topology" | "schedule" | "alerts" | "settings";
+type NavId = "overview" | "building" | "schematic" | "topology" | "schedule" | "alerts" | "workbench" | "decision" | "cctv" | "hazard" | "settings";
 
 interface NavItemDef {
   id: NavId;
@@ -26,12 +30,16 @@ interface NavItemDef {
 }
 
 const NAV_ITEMS: NavItemDef[] = [
-  { id: "overview",  icon: LayoutDashboard, label: "总览"   },
-  { id: "building",  icon: Building2,       label: "建筑模型" },
-  { id: "schematic", icon: Cpu,             label: "设备图谱" },
-  { id: "topology",  icon: GitBranch,       label: "网络拓扑" },
-  { id: "schedule",  icon: CalendarDays,    label: "实验排期", dividerBefore: true },
-  { id: "alerts",    icon: Bell,            label: "告警中心" },
+  { id: "overview",   icon: LayoutDashboard, label: "总览"    },
+  { id: "building",   icon: Building2,       label: "建筑模型" },
+  { id: "schematic",  icon: Cpu,             label: "设备图谱" },
+  { id: "topology",   icon: GitBranch,       label: "网络拓扑" },
+  { id: "schedule",   icon: CalendarDays,    label: "实验排期", dividerBefore: true },
+  { id: "alerts",     icon: Bell,            label: "告警中心" },
+  { id: "workbench",  icon: Briefcase,       label: "我的工作台", dividerBefore: true },
+  { id: "decision",   icon: BarChart2,       label: "领导决策" },
+  { id: "cctv",       icon: Video,           label: "视频监控" },
+  { id: "hazard",     icon: ShieldAlert,     label: "隐患排查" },
 ];
 
 const BOTTOM_ITEM: NavItemDef = { id: "settings", icon: Settings, label: "系统设置" };
