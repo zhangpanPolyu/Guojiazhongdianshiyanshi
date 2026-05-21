@@ -245,6 +245,7 @@ interface MetricHistoryEntry {
 }
 
 const equipmentMetricHistory: Map<string, Map<string, MetricHistoryEntry[]>> = new Map();
+const equipmentCurrentValues: Map<string, Map<string, number>> = new Map();
 
 function getOrInitHistory(equipmentId: string, metricKey: string): MetricHistoryEntry[] {
   if (!equipmentMetricHistory.has(equipmentId)) {
@@ -257,16 +258,53 @@ function getOrInitHistory(equipmentId: string, metricKey: string): MetricHistory
   return eqMap.get(metricKey)!;
 }
 
+function getOrInitCurrentValue(equipmentId: string, metricKey: string, baseValue: number): number {
+  if (!equipmentCurrentValues.has(equipmentId)) {
+    equipmentCurrentValues.set(equipmentId, new Map());
+  }
+  const eqMap = equipmentCurrentValues.get(equipmentId)!;
+  if (!eqMap.has(metricKey)) {
+    eqMap.set(metricKey, baseValue);
+  }
+  return eqMap.get(metricKey)!;
+}
+
+function setCurrentValue(equipmentId: string, metricKey: string, value: number): void {
+  equipmentCurrentValues.get(equipmentId)!.set(metricKey, value);
+}
+
 function computeDecimalPlaces(baseValue: number): number {
   if (baseValue % 1 === 0) return 0;
   const str = String(baseValue);
   return str.includes('.') ? str.split('.')[1].length : 2;
 }
 
-function getLiveValue(baseValue: number): number {
+function clamp(value: number, min: number, max: number): number {
+  return Math.min(Math.max(value, min), max);
+}
+
+function advanceLiveValue(equipmentId: string, metricKey: string, baseValue: number): number {
   if (baseValue === 0) return 0;
-  const noise = baseValue * 0.02;
-  return +(baseValue + (Math.random() * noise * 2 - noise)).toFixed(computeDecimalPlaces(baseValue));
+
+  const decimals = computeDecimalPlaces(baseValue);
+  const current = getOrInitCurrentValue(equipmentId, metricKey, baseValue);
+
+  const driftScale = baseValue * 0.008;
+  const noiseScale = baseValue * 0.005;
+
+  const meanReversion = (baseValue - current) * 0.08;
+  const drift = (Math.random() - 0.5) * 2 * driftScale;
+  const noise = (Math.random() - 0.5) * 2 * noiseScale;
+
+  const next = current + meanReversion + drift + noise;
+
+  const lo = baseValue * 0.85;
+  const hi = baseValue * 1.15;
+  const clamped = clamp(next, Math.min(lo, hi), Math.max(lo, hi));
+  const result = +clamped.toFixed(decimals);
+
+  setCurrentValue(equipmentId, metricKey, result);
+  return result;
 }
 
 function primeEquipmentHistory(item: typeof equipmentData[0]) {
@@ -275,10 +313,12 @@ function primeEquipmentHistory(item: typeof equipmentData[0]) {
   if (!isNew) return;
 
   for (const m of item.metrics) {
+    getOrInitCurrentValue(item.id, m.key, m.value);
     const history = getOrInitHistory(item.id, m.key);
     if (history.length === 0) {
       for (let i = 0; i < METRIC_HISTORY_SIZE; i++) {
-        history.push({ value: getLiveValue(m.value), timestamp: new Date(Date.now() - (METRIC_HISTORY_SIZE - i) * 5000).toISOString() });
+        const v = advanceLiveValue(item.id, m.key, m.value);
+        history.push({ value: v, timestamp: new Date(Date.now() - (METRIC_HISTORY_SIZE - i) * 5000).toISOString() });
       }
     }
   }
@@ -293,12 +333,13 @@ router.get("/equipment/:id/metrics", (req, res) => {
 
   primeEquipmentHistory(item);
 
+  const now = new Date().toISOString();
   const liveMetrics = item.metrics.map(m => {
-    const liveValue = getLiveValue(m.value);
+    const liveValue = advanceLiveValue(item.id, m.key, m.value);
     const history = getOrInitHistory(item.id, m.key);
-    history.push({ value: liveValue, timestamp: new Date().toISOString() });
+    history.push({ value: liveValue, timestamp: now });
     if (history.length > METRIC_HISTORY_SIZE) history.shift();
-    return { ...m, value: liveValue, timestamp: new Date().toISOString() };
+    return { ...m, value: liveValue, timestamp: now };
   });
   res.json(liveMetrics);
 });
@@ -318,7 +359,7 @@ router.get("/equipment/:id/metrics/history", (req, res) => {
       key: m.key,
       label: m.label,
       unit: m.unit,
-      history: history.map(h => h.value),
+      history: history.map(h => ({ value: h.value, timestamp: h.timestamp })),
     };
   });
 
