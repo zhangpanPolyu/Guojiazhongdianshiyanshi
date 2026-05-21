@@ -1,4 +1,4 @@
-import React, { useRef } from "react";
+import React, { useRef, useState, useEffect } from "react";
 import { Canvas, useFrame } from "@react-three/fiber";
 import { OrbitControls, Grid, Html } from "@react-three/drei";
 import * as THREE from "three";
@@ -119,13 +119,187 @@ function Institute() {
   );
 }
 
+const LEGEND_ITEMS = [
+  { color: "#00FF66", label: "运转中" },
+  { color: "#FFB800", label: "预约中" },
+  { color: "#00F0FF", label: "待机" },
+  { color: "#FF4444", label: "负载高" },
+];
+
+function useClock() {
+  const [now, setNow] = useState(() => new Date());
+  useEffect(() => {
+    const id = setInterval(() => setNow(new Date()), 1000);
+    return () => clearInterval(id);
+  }, []);
+  return now;
+}
+
+function HUDOverlay() {
+  const now = useClock();
+
+  const dateStr = now.toLocaleDateString("zh-CN", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    weekday: "short",
+  });
+  const timeStr = now.toLocaleTimeString("zh-CN", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: false,
+  });
+
+  return (
+    <>
+      {/* Title Banner — top of canvas */}
+      <div
+        style={{
+          position: "absolute",
+          top: 0,
+          left: 0,
+          right: 0,
+          zIndex: 10,
+          pointerEvents: "none",
+          display: "flex",
+          alignItems: "stretch",
+          justifyContent: "space-between",
+          background: "linear-gradient(180deg, rgba(0,8,30,0.92) 0%, rgba(0,8,30,0.0) 100%)",
+          padding: "10px 16px 18px",
+        }}
+      >
+        {/* Left — building name */}
+        <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <div
+            style={{
+              fontSize: 13,
+              fontWeight: 700,
+              color: "#00F0FF",
+              fontFamily: "'JetBrains Mono', monospace",
+              letterSpacing: "0.12em",
+              textShadow: "0 0 14px #00F0FF, 0 0 28px #00F0FF80",
+            }}
+          >
+            ◈ 未来地下城市研究院
+          </div>
+          <div
+            style={{
+              fontSize: 9,
+              color: "rgba(255,255,255,0.45)",
+              fontFamily: "'JetBrains Mono', monospace",
+              letterSpacing: "0.06em",
+            }}
+          >
+            深圳大学土木工程国家重点实验室
+          </div>
+        </div>
+
+        {/* Right — live clock */}
+        <div
+          style={{
+            display: "flex",
+            flexDirection: "column",
+            alignItems: "flex-end",
+            gap: 2,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 18,
+              fontWeight: 700,
+              color: "#00F0FF",
+              fontFamily: "'JetBrains Mono', monospace",
+              letterSpacing: "0.08em",
+              textShadow: "0 0 10px #00F0FF80",
+              lineHeight: 1,
+            }}
+          >
+            {timeStr}
+          </div>
+          <div
+            style={{
+              fontSize: 9,
+              color: "rgba(255,255,255,0.45)",
+              fontFamily: "'JetBrains Mono', monospace",
+              letterSpacing: "0.04em",
+            }}
+          >
+            {dateStr}
+          </div>
+        </div>
+      </div>
+
+      {/* Legend — bottom-right of canvas */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 12,
+          right: 12,
+          zIndex: 10,
+          pointerEvents: "none",
+          background: "rgba(0,8,30,0.82)",
+          border: "1px solid rgba(0,240,255,0.18)",
+          borderRadius: 4,
+          padding: "6px 10px",
+          backdropFilter: "blur(8px)",
+          boxShadow: "0 0 16px rgba(0,240,255,0.1)",
+          display: "flex",
+          flexDirection: "column",
+          gap: 4,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 8,
+            color: "rgba(255,255,255,0.4)",
+            fontFamily: "'JetBrains Mono', monospace",
+            letterSpacing: "0.1em",
+            marginBottom: 2,
+          }}
+        >
+          楼层状态图例
+        </div>
+        {LEGEND_ITEMS.map(({ color, label }) => (
+          <div
+            key={label}
+            style={{ display: "flex", alignItems: "center", gap: 6 }}
+          >
+            <div
+              style={{
+                width: 8,
+                height: 8,
+                borderRadius: 2,
+                background: color,
+                boxShadow: `0 0 6px ${color}`,
+                flexShrink: 0,
+              }}
+            />
+            <span
+              style={{
+                fontSize: 9,
+                color: "rgba(255,255,255,0.65)",
+                fontFamily: "'JetBrains Mono', monospace",
+                letterSpacing: "0.04em",
+              }}
+            >
+              {label}
+            </span>
+          </div>
+        ))}
+      </div>
+    </>
+  );
+}
+
 export function ResearchInstituteBuilding() {
   if (!isWebGLAvailable()) {
     return <WebGLFallback />;
   }
   return (
     <WebGLErrorBoundary>
-      <div className="w-full h-full bg-transparent">
+      <div className="w-full h-full bg-transparent" style={{ position: "relative" }}>
+        <HUDOverlay />
         <Canvas camera={{ position: [9, 5, 9], fov: 45 }}>
           <ambientLight intensity={0.25} />
           <pointLight position={[6, 12, 6]} intensity={0.6} color="#00F0FF" />
