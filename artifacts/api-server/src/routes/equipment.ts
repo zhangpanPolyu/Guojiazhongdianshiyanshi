@@ -237,21 +237,92 @@ router.get("/equipment/:id", (req, res) => {
   res.json(item);
 });
 
+const METRIC_HISTORY_SIZE = 20;
+
+interface MetricHistoryEntry {
+  value: number;
+  timestamp: string;
+}
+
+const equipmentMetricHistory: Map<string, Map<string, MetricHistoryEntry[]>> = new Map();
+
+function getOrInitHistory(equipmentId: string, metricKey: string): MetricHistoryEntry[] {
+  if (!equipmentMetricHistory.has(equipmentId)) {
+    equipmentMetricHistory.set(equipmentId, new Map());
+  }
+  const eqMap = equipmentMetricHistory.get(equipmentId)!;
+  if (!eqMap.has(metricKey)) {
+    eqMap.set(metricKey, []);
+  }
+  return eqMap.get(metricKey)!;
+}
+
+function computeDecimalPlaces(baseValue: number): number {
+  if (baseValue % 1 === 0) return 0;
+  const str = String(baseValue);
+  return str.includes('.') ? str.split('.')[1].length : 2;
+}
+
+function getLiveValue(baseValue: number): number {
+  if (baseValue === 0) return 0;
+  const noise = baseValue * 0.02;
+  return +(baseValue + (Math.random() * noise * 2 - noise)).toFixed(computeDecimalPlaces(baseValue));
+}
+
+function primeEquipmentHistory(item: typeof equipmentData[0]) {
+  const eqHistory = equipmentMetricHistory.get(item.id);
+  const isNew = !eqHistory || eqHistory.size === 0;
+  if (!isNew) return;
+
+  for (const m of item.metrics) {
+    const history = getOrInitHistory(item.id, m.key);
+    if (history.length === 0) {
+      for (let i = 0; i < METRIC_HISTORY_SIZE; i++) {
+        history.push({ value: getLiveValue(m.value), timestamp: new Date(Date.now() - (METRIC_HISTORY_SIZE - i) * 5000).toISOString() });
+      }
+    }
+  }
+}
+
 router.get("/equipment/:id/metrics", (req, res) => {
   const item = equipmentData.find((e) => e.id === req.params.id);
   if (!item) {
     res.status(404).json({ error: "Not found" });
     return;
   }
+
+  primeEquipmentHistory(item);
+
   const liveMetrics = item.metrics.map(m => {
-    if (m.value === 0) return { ...m, timestamp: new Date().toISOString() };
-    const noise = m.value * 0.02;
-    const liveValue = +(m.value + (Math.random() * noise * 2 - noise)).toFixed(
-      m.value % 1 === 0 ? 0 : String(m.value).includes('.') ? String(m.value).split('.')[1].length : 2
-    );
+    const liveValue = getLiveValue(m.value);
+    const history = getOrInitHistory(item.id, m.key);
+    history.push({ value: liveValue, timestamp: new Date().toISOString() });
+    if (history.length > METRIC_HISTORY_SIZE) history.shift();
     return { ...m, value: liveValue, timestamp: new Date().toISOString() };
   });
   res.json(liveMetrics);
+});
+
+router.get("/equipment/:id/metrics/history", (req, res) => {
+  const item = equipmentData.find((e) => e.id === req.params.id);
+  if (!item) {
+    res.status(404).json({ error: "Not found" });
+    return;
+  }
+
+  primeEquipmentHistory(item);
+
+  const result = item.metrics.map(m => {
+    const history = getOrInitHistory(item.id, m.key);
+    return {
+      key: m.key,
+      label: m.label,
+      unit: m.unit,
+      history: history.map(h => h.value),
+    };
+  });
+
+  res.json(result);
 });
 
 interface Reservation {
